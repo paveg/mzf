@@ -1,0 +1,17 @@
+import {
+  "paveg/mzf/core",
+  "paveg/mzf/ui",
+  "mizchi/tui/io",
+  "mizchi/tui/events",
+  "moonbitlang/async" as @mbasync,
+  "moonbitlang/async/stdio" as @stdio,
+  "moonbitlang/core/env" as @env,
+}
+
+options(
+  "is-main": true,
+  targets: {
+    "main_native.mbt": ["native"],
+    "main_js.mbt": ["js"],
+  },
+)

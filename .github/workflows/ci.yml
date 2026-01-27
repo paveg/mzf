@@ -1,0 +1,67 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: moon install
+
+      - name: Format check
+        run: moon fmt --check
+
+      - name: Type check
+        run: moon check
+
+      - name: Run tests
+        run: moon test --target js
+
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: moon install
+
+      - name: Build JS target
+        run: moon build --target js
+
+      - name: Build native target
+        run: |
+          moon build --target native || true
+          cc -c -o _build/tui_native.o .mooncakes/mizchi/tui/io/tui_native.c
+          cc -o _build/native/release/build/main/main.exe \
+            -I$HOME/.moon/include -fwrapv -fno-strict-aliasing -O2 \
+            $HOME/.moon/lib/libmoonbitrun.o \
+            _build/native/release/build/main/main.c \
+            _build/native/release/build/runtime.o \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/c_buffer/libc_buffer.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/os_string/libos_string.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/os_error/libos_error.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/fd_util/libfd_util.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/time/libtime.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/event_loop/libevent_loop.a \
+            _build/tui_native.o \
+            -lm
+
+      - name: Verify binary
+        run: ./_build/native/release/build/main/main.exe --version

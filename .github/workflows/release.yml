@@ -1,0 +1,146 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: linux-x64
+            binary_name: mzf
+          - os: macos-latest
+            target: darwin-arm64
+            binary_name: mzf
+          - os: macos-13
+            target: darwin-x64
+            binary_name: mzf
+
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: moon install
+
+      - name: Build native binary
+        run: |
+          moon build --target native || true
+          # Manual linking (workaround for tui_native.c)
+          cc -c -o _build/tui_native.o .mooncakes/mizchi/tui/io/tui_native.c
+          cc -o _build/native/release/build/main/main.exe \
+            -I$HOME/.moon/include -fwrapv -fno-strict-aliasing -O2 \
+            $HOME/.moon/lib/libmoonbitrun.o \
+            _build/native/release/build/main/main.c \
+            _build/native/release/build/runtime.o \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/c_buffer/libc_buffer.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/os_string/libos_string.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/os_error/libos_error.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/fd_util/libfd_util.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/time/libtime.a \
+            _build/native/release/build/.mooncakes/moonbitlang/async/internal/event_loop/libevent_loop.a \
+            _build/tui_native.o \
+            -lm
+
+      - name: Package binary
+        run: |
+          mkdir -p dist
+          cp _build/native/release/build/main/main.exe dist/${{ matrix.binary_name }}
+          cd dist
+          tar -czvf mzf-${{ matrix.target }}.tar.gz ${{ matrix.binary_name }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mzf-${{ matrix.target }}
+          path: dist/mzf-${{ matrix.target }}.tar.gz
+
+  build-js:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: Install dependencies
+        run: moon install
+
+      - name: Build JS target
+        run: moon build --target js
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Prepare npm package
+        run: |
+          mkdir -p npm-dist
+          cp _build/js/release/build/main/main.js npm-dist/mzf.js
+          cp package.json npm-dist/
+          cp README.md npm-dist/ 2>/dev/null || echo "# mzf" > npm-dist/README.md
+
+      - name: Upload npm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-package
+          path: npm-dist/
+
+  release:
+    needs: [build, build-js]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            artifacts/mzf-linux-x64/mzf-linux-x64.tar.gz
+            artifacts/mzf-darwin-arm64/mzf-darwin-arm64.tar.gz
+            artifacts/mzf-darwin-x64/mzf-darwin-x64.tar.gz
+          generate_release_notes: true
+
+  publish-npm:
+    needs: [build-js]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download npm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-package
+          path: npm-dist
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Publish to npm
+        working-directory: npm-dist
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

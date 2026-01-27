@@ -1,0 +1,32 @@
+{
+  "name": "@paveg/mzf",
+  "version": "0.1.0",
+  "description": "A lightweight fuzzy finder written in MoonBit",
+  "main": "mzf.js",
+  "bin": {
+    "mzf": "./bin/mzf"
+  },
+  "scripts": {
+    "start": "node mzf.js"
+  },
+  "keywords": [
+    "fuzzy-finder",
+    "fzf",
+    "cli",
+    "moonbit",
+    "tui"
+  ],
+  "author": "paveg",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/paveg/mzf.git"
+  },
+  "bugs": {
+    "url": "https://github.com/paveg/mzf/issues"
+  },
+  "homepage": "https://github.com/paveg/mzf#readme",
+  "engines": {
+    "node": ">=18"
+  }
+}
