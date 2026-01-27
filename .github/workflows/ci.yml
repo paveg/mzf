@@ -33,8 +33,11 @@ jobs:
       - name: Format check
         run: moon fmt --check
 
-      - name: Type check
+      - name: Type check (js)
         run: moon check --target js
+
+      - name: Type check (native)
+        run: moon check --target native
 
       - name: Run tests
         run: moon test --target js
