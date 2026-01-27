@@ -77,6 +77,7 @@ pub fn highlight_match_result(result : @core.MatchResult) -> String {
 ///|
 /// Color scheme for customizable colors
 pub struct ColorScheme {
+  fg : String // Foreground color for query text
   prompt : String // Prompt color
   pointer : String // Pointer/cursor color
   marker : String // Marker color
@@ -90,6 +91,7 @@ pub struct ColorScheme {
 /// Default color scheme
 pub fn ColorScheme::default() -> ColorScheme {
   {
+    fg: "\u001b[96m", // Bright cyan foreground for query (highly visible)
     prompt: ansi_yellow,
     pointer: ansi_cyan,
     marker: ansi_green,
@@ -147,6 +149,7 @@ pub fn ColorScheme::parse(spec : String) -> ColorScheme {
     pairs.push(buf.to_string())
   }
   // Parse each pair (key:value)
+  let mut fg = scheme.fg
   let mut prompt = scheme.prompt
   let mut pointer = scheme.pointer
   let mut marker = scheme.marker
@@ -173,6 +176,7 @@ pub fn ColorScheme::parse(spec : String) -> ColorScheme {
     let color = color_name_to_ansi(val)
     if color.length() > 0 {
       match key {
+        "fg" => fg = color
         "prompt" => prompt = color
         "pointer" => pointer = color
         "marker" => marker = color
@@ -184,5 +188,5 @@ pub fn ColorScheme::parse(spec : String) -> ColorScheme {
       }
     }
   }
-  { prompt, pointer, marker, info, header, border, hl }
+  { fg, prompt, pointer, marker, info, header, border, hl }
 }

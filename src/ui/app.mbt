@@ -688,8 +688,11 @@ fn App::render_item(self : App, buf : StringBuilder, idx : Int) -> Unit {
   } else if self.with_nth.length() > 0 {
     buf.write_string(display_text)
   } else {
-    buf.write_string(highlight_text(result.item.text, result.match_positions, self.colors.hl))
+    buf.write_string(
+      highlight_text(result.item.text, result.match_positions, self.colors.hl),
+    )
   }
+  buf.write_string("\u001b[K") // Clear to end of line
   buf.write_string("\r\n")
 }
 
@@ -728,6 +731,7 @@ fn App::render_info(self : App, buf : StringBuilder) -> Unit {
   buf.write_string("/")
   buf.write_string(self.items.length().to_string())
   buf.write_string(ansi_reset)
+  buf.write_string("\u001b[K") // Clear to end of line
 }
 
 ///|
@@ -736,9 +740,10 @@ fn App::render_prompt_line(self : App, buf : StringBuilder) -> Unit {
   buf.write_string(self.colors.prompt)
   buf.write_string(self.prompt)
   buf.write_string(ansi_reset)
-  // Ensure query text is visible with explicit default color
-  buf.write_string("\u001b[39m") // Default foreground color
+  // Query text uses explicit foreground color
+  buf.write_string(self.colors.fg)
   buf.write_string(self.query)
+  buf.write_string(ansi_reset)
   buf.write_string(ansi_dim)
   buf.write_string("_")
   buf.write_string(ansi_reset)
@@ -747,6 +752,7 @@ fn App::render_prompt_line(self : App, buf : StringBuilder) -> Unit {
     buf.write_string(" ")
     self.render_info(buf)
   }
+  buf.write_string("\u001b[K") // Clear to end of line
 }
 
 ///|
@@ -760,6 +766,7 @@ fn App::render_separator(self : App, buf : StringBuilder) -> Unit {
     buf.write_string(sep_char)
   }
   buf.write_string(ansi_reset)
+  buf.write_string("\u001b[K") // Clear to end of line
 }
 
 ///|
@@ -833,14 +840,14 @@ pub fn App::render(self : App) -> String {
   let header_lines = if self.header.length() > 0 { 1 } else { 0 }
   // Adjust for info line (not needed when inline or hidden)
   let info_lines = if self.info == "default" { 1 } else { 0 }
-  // Adjust for border lines
-  let border_lines = if self.border != "none" { 2 } else { 0 }
-  let max_visible = self.height - 2 - header_lines - info_lines - border_lines
+  // Adjust for border lines (top line is always reserved now for border or spacer)
+  let top_line = 1 // Always have top border or spacer line
+  let bottom_line = if self.border != "none" { 1 } else { 0 }
+  let max_visible = self.height - 2 - header_lines - info_lines - top_line - bottom_line
 
-  // Hide cursor and move to top
+  // Hide cursor and clear screen
   buf.write_string("\u001b[?25l") // Hide cursor
-  buf.write_string("\u001b[H") // Move to home
-  buf.write_string("\u001b[J") // Clear from cursor to end
+  buf.write_string("\u001b[H") // Move to home first
   buf.write_string(ansi_reset) // Reset all attributes to ensure clean state
   let visible_count = if self.filtered.length() > max_visible {
     max_visible
@@ -851,8 +858,13 @@ pub fn App::render(self : App) -> String {
   let items_reversed = self.is_items_reversed()
   if prompt_at_bottom {
     // Reverse layout: status at top, items bottom-to-top, prompt at bottom
-    // Top border
-    self.render_top_border(buf)
+    // Top border (or empty line for terminal compatibility)
+    if self.border == "none" {
+      buf.write_string("\u001b[K") // Clear first line
+      buf.write_string("\r\n")
+    } else {
+      self.render_top_border(buf)
+    }
 
     // Status line (if default - not inline or hidden)
     if self.info == "default" {
@@ -868,9 +880,10 @@ pub fn App::render(self : App) -> String {
       buf.write_string("\r\n")
     }
 
-    // Fill empty lines first
+    // Fill empty lines first (clear each line to remove old content)
     for j = visible_count; j < max_visible; j = j + 1 {
       ignore(j)
+      buf.write_string("\u001b[K") // Clear to end of line
       buf.write_string("\r\n")
     }
 
@@ -908,8 +921,13 @@ pub fn App::render(self : App) -> String {
     buf.write_string("\u001b[?25h") // Show cursor
   } else {
     // Default layout: prompt at top, items top-to-bottom, status at bottom
-    // Top border
-    self.render_top_border(buf)
+    // Top border (or empty line to push prompt to row 2 for terminal compatibility)
+    if self.border == "none" {
+      buf.write_string("\u001b[K") // Clear first line
+      buf.write_string("\r\n")
+    } else {
+      self.render_top_border(buf)
+    }
 
     // Render prompt line
     self.render_prompt_line(buf)
@@ -938,9 +956,10 @@ pub fn App::render(self : App) -> String {
       }
     }
 
-    // Fill remaining lines
+    // Fill remaining lines (clear each line to remove old content)
     for j = visible_count; j < max_visible; j = j + 1 {
       ignore(j)
+      buf.write_string("\u001b[K") // Clear to end of line
       buf.write_string("\r\n")
     }
 
@@ -953,9 +972,8 @@ pub fn App::render(self : App) -> String {
     // Bottom border
     self.render_bottom_border(buf)
 
-    // Show cursor at query position
-    let border_offset = if self.border != "none" { 1 } else { 0 }
-    let cursor_row = 1 + border_offset
+    // Show cursor at query position (prompt is always at row 2 now)
+    let cursor_row = 2
     let cursor_col = string_width(self.prompt) + 1 + self.query.length()
     buf.write_string("\u001b[")
     buf.write_string(cursor_row.to_string())

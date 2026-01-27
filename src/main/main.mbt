@@ -123,6 +123,9 @@ fn run_app(
 
   // Enter alternate screen and enable raw mode
   @io.print_raw("\u001b[?1049h") // Enter alternate screen
+  @io.print_raw("\u001b[2J") // Clear entire alternate screen
+  @io.print_raw("\u001b[H") // Move to home
+  @io.print_raw("\u001b[0m") // Reset all attributes
   @io.enable_raw_mode()
 
   // Initial render
