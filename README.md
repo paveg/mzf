@@ -12,13 +12,6 @@ A lightweight fuzzy finder written in MoonBit.
 
 ## Installation
 
-### Homebrew (macOS/Linux)
-
-```bash
-brew tap paveg/tap
-brew install mzf
-```
-
 ### npm
 
 ```bash
@@ -33,7 +26,8 @@ Requires [MoonBit](https://www.moonbitlang.com/) toolchain.
 git clone https://github.com/paveg/mzf.git
 cd mzf
 moon install
-make native
+make
+make install  # installs to ~/.local/bin/mzf
 ```
 
 ## Usage
