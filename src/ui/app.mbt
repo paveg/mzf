@@ -168,7 +168,7 @@ pub fn App::render(self : App) -> String {
   buf.write_string("> ")
   buf.write_string(ansi_reset)
   buf.write_string(self.query)
-  buf.write_string("_\n")
+  buf.write_string("_\r\n")
 
   // Separator
   buf.write_string(ansi_dim)
@@ -177,7 +177,7 @@ pub fn App::render(self : App) -> String {
     buf.write_string("─")
   }
   buf.write_string(ansi_reset)
-  buf.write_string("\n")
+  buf.write_string("\r\n")
 
   // Render items
   let visible_count = if self.filtered.length() > max_visible {
@@ -196,18 +196,21 @@ pub fn App::render(self : App) -> String {
       buf.write_string("  ")
     }
 
-    // Highlight matching characters
-    buf.write_string(highlight_match_result(result))
+    // For selected items, don't highlight matches (reverse video is enough)
+    // For non-selected items, highlight matching characters
     if is_selected {
+      buf.write_string(result.item.text)
       buf.write_string(ansi_reset)
+    } else {
+      buf.write_string(highlight_match_result(result))
     }
-    buf.write_string("\n")
+    buf.write_string("\r\n")
   }
 
   // Fill remaining lines
   for j = visible_count; j < max_visible; j = j + 1 {
     ignore(j)
-    buf.write_string("\n")
+    buf.write_string("\r\n")
   }
 
   // Status line

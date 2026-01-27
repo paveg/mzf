@@ -5,8 +5,8 @@ BUILD_DIR := _build
 NATIVE_DIR := $(BUILD_DIR)/native/release/build
 JS_DIR := $(BUILD_DIR)/js/release/build
 
-# TUI native C source
-TUI_NATIVE_C := .mooncakes/mizchi/tui/io/tui_native.c
+# TUI native C source (our patched version with /dev/tty support)
+TUI_NATIVE_C := native/tui_native.c
 TUI_NATIVE_O := $(BUILD_DIR)/tui_native.o
 
 all: build-js build-native
