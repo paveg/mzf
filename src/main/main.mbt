@@ -46,6 +46,7 @@ fn run_app(
   border? : String = "none",
   info? : String = "default",
   layout? : String = "default",
+  color? : String = "",
 ) -> Unit {
   if items.length() == 0 {
     if exit_0 {
@@ -78,6 +79,7 @@ fn run_app(
     border~,
     info~,
     layout~,
+    color~,
   )
 
   // Handle --select-1: auto-select if only one match

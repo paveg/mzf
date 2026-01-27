@@ -39,6 +39,7 @@ struct CliOptions {
   border : String // Border style (--border: none, rounded, sharp, horizontal)
   info : String // Info line style (--info: default, hidden, inline)
   layout : String // Layout (--layout: default, reverse, reverse-list)
+  color : String // Color scheme (--color: prompt:yellow,pointer:cyan,...)
 }
 
 ///|
@@ -87,6 +88,7 @@ fn parse_args() -> CliOptions {
   let mut border = "none"
   let mut info = "default"
   let mut layout = "default"
+  let mut color = ""
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -240,6 +242,13 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--layout=") {
       layout = extract_value(arg, 9)
+    } else if arg == "--color" {
+      i = i + 1
+      if i < args.length() {
+        color = args[i]
+      }
+    } else if arg.has_prefix("--color=") {
+      color = extract_value(arg, 8)
     }
     i = i + 1
   }
@@ -275,6 +284,7 @@ fn parse_args() -> CliOptions {
     border,
     info,
     layout,
+    color,
   }
 }
 
@@ -318,6 +328,7 @@ fn print_help() -> Unit {
     "    --border <STYLE>         Border style (none, rounded, sharp, horizontal)\n" +
     "    --info <STYLE>           Info line style (default, hidden, inline)\n" +
     "    --layout <LAYOUT>        Layout (default, reverse, reverse-list)\n" +
+    "    --color <SPEC>           Color scheme (prompt:yellow,pointer:cyan,...)\n" +
     "\n" +
     "  Behavior:\n" +
     "    -m, --multi              Enable multi-select (Tab to mark)\n" +

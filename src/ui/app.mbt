@@ -151,6 +151,7 @@ pub struct App {
   border : String // Border style (none, rounded, sharp, horizontal)
   info : String // Info line style (default, hidden, inline)
   layout : String // Layout (default, reverse, reverse-list)
+  colors : ColorScheme // Color scheme for UI elements
 }
 
 ///|
@@ -178,6 +179,7 @@ pub fn App::new(
   border? : String = "none",
   info? : String = "default",
   layout? : String = "default",
+  color? : String = "",
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -211,6 +213,7 @@ pub fn App::new(
     border,
     info,
     layout,
+    colors: ColorScheme::parse(color),
   }
   // Apply initial filter
   app.update_filter()
@@ -648,7 +651,7 @@ fn App::render_item(self : App, buf : StringBuilder, idx : Int) -> Unit {
 
   // Marker column
   if is_marked {
-    buf.write_string(ansi_green)
+    buf.write_string(self.colors.marker)
     buf.write_string(self.marker)
     buf.write_string(ansi_reset)
   } else {
@@ -662,7 +665,7 @@ fn App::render_item(self : App, buf : StringBuilder, idx : Int) -> Unit {
   // Selection indicator
   if is_cursor {
     buf.write_string(ansi_reverse)
-    buf.write_string(ansi_cyan)
+    buf.write_string(self.colors.pointer)
     buf.write_string(self.pointer)
   } else {
     // Pad with spaces to match pointer width
@@ -685,7 +688,7 @@ fn App::render_item(self : App, buf : StringBuilder, idx : Int) -> Unit {
   } else if self.with_nth.length() > 0 {
     buf.write_string(display_text)
   } else {
-    buf.write_string(highlight_match_result(result))
+    buf.write_string(highlight_text(result.item.text, result.match_positions, self.colors.hl))
   }
   buf.write_string("\r\n")
 }
@@ -716,7 +719,7 @@ fn App::render_info(self : App, buf : StringBuilder) -> Unit {
   if self.info == "hidden" {
     return
   }
-  buf.write_string(ansi_dim)
+  buf.write_string(self.colors.info)
   if self.marked.length() > 0 {
     buf.write_string(self.marked.length().to_string())
     buf.write_string("/")
@@ -730,7 +733,7 @@ fn App::render_info(self : App, buf : StringBuilder) -> Unit {
 ///|
 /// Render prompt line with optional inline info
 fn App::render_prompt_line(self : App, buf : StringBuilder) -> Unit {
-  buf.write_string(ansi_yellow)
+  buf.write_string(self.colors.prompt)
   buf.write_string(self.prompt)
   buf.write_string(ansi_reset)
   buf.write_string(self.query)
@@ -747,7 +750,7 @@ fn App::render_prompt_line(self : App, buf : StringBuilder) -> Unit {
 fn App::render_separator(self : App, buf : StringBuilder) -> Unit {
   let (_, _, _, _, h_char, _) = get_border_chars(self.border)
   let sep_char = if h_char.length() > 0 { h_char } else { "─" }
-  buf.write_string(ansi_dim)
+  buf.write_string(self.colors.border)
   for i = 0; i < self.width - 1; i = i + 1 {
     ignore(i)
     buf.write_string(sep_char)
@@ -762,7 +765,7 @@ fn App::render_top_border(self : App, buf : StringBuilder) -> Unit {
     return
   }
   let (tl, tr, _, _, h_char, _) = get_border_chars(self.border)
-  buf.write_string(ansi_dim)
+  buf.write_string(self.colors.border)
   if self.border == "horizontal" {
     for i = 0; i < self.width - 1; i = i + 1 {
       ignore(i)
@@ -788,7 +791,7 @@ fn App::render_bottom_border(self : App, buf : StringBuilder) -> Unit {
     return
   }
   let (_, _, bl, br, h_char, _) = get_border_chars(self.border)
-  buf.write_string(ansi_dim)
+  buf.write_string(self.colors.border)
   if self.border == "horizontal" {
     for i = 0; i < self.width - 1; i = i + 1 {
       ignore(i)
@@ -854,7 +857,7 @@ pub fn App::render(self : App) -> String {
 
     // Header (if present)
     if self.header.length() > 0 {
-      buf.write_string(ansi_magenta)
+      buf.write_string(self.colors.header)
       buf.write_string(self.header)
       buf.write_string(ansi_reset)
       buf.write_string("\r\n")
@@ -913,7 +916,7 @@ pub fn App::render(self : App) -> String {
 
     // Header (if present)
     if self.header.length() > 0 {
-      buf.write_string(ansi_magenta)
+      buf.write_string(self.colors.header)
       buf.write_string(self.header)
       buf.write_string(ansi_reset)
       buf.write_string("\r\n")

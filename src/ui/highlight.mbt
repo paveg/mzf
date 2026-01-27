@@ -73,3 +73,116 @@ pub fn highlight_text(
 pub fn highlight_match_result(result : @core.MatchResult) -> String {
   highlight_text(result.item.text, result.match_positions, ansi_cyan)
 }
+
+///|
+/// Color scheme for customizable colors
+pub struct ColorScheme {
+  prompt : String // Prompt color
+  pointer : String // Pointer/cursor color
+  marker : String // Marker color
+  info : String // Info line color
+  header : String // Header color
+  border : String // Border color
+  hl : String // Highlight color for matches
+}
+
+///|
+/// Default color scheme
+pub fn ColorScheme::default() -> ColorScheme {
+  {
+    prompt: ansi_yellow,
+    pointer: ansi_cyan,
+    marker: ansi_green,
+    info: ansi_dim,
+    header: ansi_magenta,
+    border: ansi_dim,
+    hl: ansi_cyan,
+  }
+}
+
+///|
+/// Map color name to ANSI code
+fn color_name_to_ansi(name : String) -> String {
+  match name {
+    "black" => "\u001b[30m"
+    "red" => "\u001b[31m"
+    "green" => "\u001b[32m"
+    "yellow" => "\u001b[33m"
+    "blue" => "\u001b[34m"
+    "magenta" => "\u001b[35m"
+    "cyan" => "\u001b[36m"
+    "white" => "\u001b[37m"
+    "bright-black" | "dark-gray" => "\u001b[90m"
+    "bright-red" => "\u001b[91m"
+    "bright-green" => "\u001b[92m"
+    "bright-yellow" => "\u001b[93m"
+    "bright-blue" => "\u001b[94m"
+    "bright-magenta" => "\u001b[95m"
+    "bright-cyan" => "\u001b[96m"
+    "bright-white" => "\u001b[97m"
+    _ => "" // Invalid, return empty (use default)
+  }
+}
+
+///|
+/// Parse color specification string (e.g., "prompt:yellow,pointer:cyan")
+pub fn ColorScheme::parse(spec : String) -> ColorScheme {
+  let scheme = ColorScheme::default()
+  if spec.length() == 0 {
+    return scheme
+  }
+  // Split by comma
+  let chars : Array[Char] = spec.iter().collect()
+  let buf = StringBuilder::new()
+  let pairs : Array[String] = []
+  for i = 0; i < chars.length(); i = i + 1 {
+    if chars[i] == ',' {
+      pairs.push(buf.to_string())
+      buf.reset()
+    } else {
+      buf.write_char(chars[i])
+    }
+  }
+  if buf.to_string().length() > 0 {
+    pairs.push(buf.to_string())
+  }
+  // Parse each pair (key:value)
+  let mut prompt = scheme.prompt
+  let mut pointer = scheme.pointer
+  let mut marker = scheme.marker
+  let mut info = scheme.info
+  let mut header = scheme.header
+  let mut border = scheme.border
+  let mut hl = scheme.hl
+  for pair in pairs {
+    let pair_chars : Array[Char] = pair.iter().collect()
+    let key_buf = StringBuilder::new()
+    let val_buf = StringBuilder::new()
+    let mut in_value = false
+    for j = 0; j < pair_chars.length(); j = j + 1 {
+      if pair_chars[j] == ':' && not(in_value) {
+        in_value = true
+      } else if in_value {
+        val_buf.write_char(pair_chars[j])
+      } else {
+        key_buf.write_char(pair_chars[j])
+      }
+    }
+    let key = key_buf.to_string()
+    let val = val_buf.to_string()
+    let color = color_name_to_ansi(val)
+    if color.length() > 0 {
+      match key {
+        "prompt" => prompt = color
+        "pointer" => pointer = color
+        "marker" => marker = color
+        "info" => info = color
+        "header" => header = color
+        "border" => border = color
+        "hl" => hl = color
+        _ => () // Unknown key, ignore
+      }
+    }
+  }
+  { prompt, pointer, marker, info, header, border, hl }
+}

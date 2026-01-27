@@ -292,6 +292,7 @@ async fn async_main() -> Unit {
     border=opts.border,
     info=opts.info,
     layout=opts.layout,
+    color=opts.color,
   )
 }
 
