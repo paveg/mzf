@@ -35,6 +35,9 @@ fn run_app(
   // Initial render
   @io.print_raw(app.render())
 
+  // Keep event loop alive (needed for JS target)
+  @io.set_idle_handler(fn() { () })
+
   // Event loop
   @io.start_keypress_listener(fn(key) {
     if key.length() == 0 || not(app.is_running()) {
