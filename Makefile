@@ -15,25 +15,25 @@ all: build-js build-native
 build-js:
 	moon build --target js
 
-# Build native target (requires manual linking due to moon bug)
+# Build native target (requires manual linking due to moon bug with extern "C")
 build-native: $(TUI_NATIVE_O)
-	moon build --target native || true
-	@if [ ! -f "$(NATIVE_DIR)/main/main.exe" ] || [ "$(TUI_NATIVE_O)" -nt "$(NATIVE_DIR)/main/main.exe" ]; then \
-		echo "Linking native binary with tui_native.o..."; \
-		/usr/bin/cc -o $(NATIVE_DIR)/main/main.exe \
-			-I$$HOME/.moon/include -fwrapv -fno-strict-aliasing -O2 \
-			$$HOME/.moon/lib/libmoonbitrun.o \
-			$(NATIVE_DIR)/main/main.c \
-			$(NATIVE_DIR)/runtime.o \
-			$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/c_buffer/libc_buffer.a \
-			$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/os_string/libos_string.a \
-			$(NATIVE_DIR)/.mooncakes/moonbitlang/async/os_error/libos_error.a \
-			$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/fd_util/libfd_util.a \
-			$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/time/libtime.a \
-			$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/event_loop/libevent_loop.a \
-			$(TUI_NATIVE_O) \
-			-lm; \
-	fi
+	@# moon build will fail at link stage due to missing tui symbols, but generates .c files
+	@rm -f $(NATIVE_DIR)/main/main.exe
+	@moon build --target native >/dev/null 2>&1 || true
+	@echo "Linking native binary with tui_native.o..."
+	@/usr/bin/cc -o $(NATIVE_DIR)/main/main.exe \
+		-I$$HOME/.moon/include -fwrapv -fno-strict-aliasing -O2 \
+		$$HOME/.moon/lib/libmoonbitrun.o \
+		$(NATIVE_DIR)/main/main.c \
+		$(NATIVE_DIR)/runtime.o \
+		$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/c_buffer/libc_buffer.a \
+		$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/os_string/libos_string.a \
+		$(NATIVE_DIR)/.mooncakes/moonbitlang/async/os_error/libos_error.a \
+		$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/fd_util/libfd_util.a \
+		$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/time/libtime.a \
+		$(NATIVE_DIR)/.mooncakes/moonbitlang/async/internal/event_loop/libevent_loop.a \
+		$(TUI_NATIVE_O) \
+		-lm
 
 # Compile TUI native C helper
 $(TUI_NATIVE_O): $(TUI_NATIVE_C)
