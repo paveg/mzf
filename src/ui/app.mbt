@@ -147,6 +147,10 @@ pub struct App {
   history : Array[String] // History entries (most recent last)
   mut history_idx : Int // Current position in history (-1 = current query)
   mut saved_query : String // Query saved when entering history navigation
+  // Display style
+  border : String // Border style (none, rounded, sharp, horizontal)
+  info : String // Info line style (default, hidden, inline)
+  layout : String // Layout (default, reverse, reverse-list)
 }
 
 ///|
@@ -171,6 +175,9 @@ pub fn App::new(
   expect? : String = "",
   ansi? : Bool = false,
   history? : Array[String] = [],
+  border? : String = "none",
+  info? : String = "default",
+  layout? : String = "default",
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -201,6 +208,9 @@ pub fn App::new(
     history,
     history_idx: -1,
     saved_query: "",
+    border,
+    info,
+    layout,
   }
   // Apply initial filter
   app.update_filter()
@@ -687,6 +697,35 @@ fn string_width(s : String) -> Int {
 }
 
 ///|
+/// Get border characters based on style
+fn get_border_chars(style : String) -> (String, String, String, String, String, String) {
+  // Returns (top_left, top_right, bottom_left, bottom_right, horizontal, vertical)
+  match style {
+    "rounded" => ("╭", "╮", "╰", "╯", "─", "│")
+    "sharp" => ("┌", "┐", "└", "┘", "─", "│")
+    "horizontal" => ("─", "─", "─", "─", "─", " ")
+    _ => ("", "", "", "", "", "") // none
+  }
+}
+
+///|
+/// Render info line (match count)
+fn App::render_info(self : App, buf : StringBuilder) -> Unit {
+  if self.info == "hidden" {
+    return
+  }
+  buf.write_string(ansi_dim)
+  if self.marked.length() > 0 {
+    buf.write_string(self.marked.length().to_string())
+    buf.write_string("/")
+  }
+  buf.write_string(self.filtered.length().to_string())
+  buf.write_string("/")
+  buf.write_string(self.items.length().to_string())
+  buf.write_string(ansi_reset)
+}
+
+///|
 /// Render the UI
 pub fn App::render(self : App) -> String {
   let buf = StringBuilder::new()
@@ -705,17 +744,11 @@ pub fn App::render(self : App) -> String {
   }
   if self.reverse {
     // Reverse mode: status at top, items bottom-to-top, prompt at bottom
-    // Status line
-    buf.write_string(ansi_dim)
-    if self.marked.length() > 0 {
-      buf.write_string(self.marked.length().to_string())
-      buf.write_string("/")
+    // Status line (if not hidden)
+    if self.info != "hidden" {
+      self.render_info(buf)
+      buf.write_string("\r\n")
     }
-    buf.write_string(self.filtered.length().to_string())
-    buf.write_string("/")
-    buf.write_string(self.items.length().to_string())
-    buf.write_string(ansi_reset)
-    buf.write_string("\r\n")
 
     // Header (if present)
     if self.header.length() > 0 {
@@ -798,16 +831,10 @@ pub fn App::render(self : App) -> String {
       buf.write_string("\r\n")
     }
 
-    // Status line
-    buf.write_string(ansi_dim)
-    if self.marked.length() > 0 {
-      buf.write_string(self.marked.length().to_string())
-      buf.write_string("/")
+    // Status line (if not hidden)
+    if self.info != "hidden" {
+      self.render_info(buf)
     }
-    buf.write_string(self.filtered.length().to_string())
-    buf.write_string("/")
-    buf.write_string(self.items.length().to_string())
-    buf.write_string(ansi_reset)
 
     // Show cursor at query position
     let cursor_row = 1

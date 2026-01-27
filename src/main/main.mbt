@@ -43,6 +43,9 @@ fn run_app(
   ansi? : Bool = false,
   history? : Array[String] = [],
   on_select? : (String) -> Unit = fn(_q) {  },
+  border? : String = "none",
+  info? : String = "default",
+  layout? : String = "default",
 ) -> Unit {
   if items.length() == 0 {
     if exit_0 {
@@ -72,6 +75,9 @@ fn run_app(
     expect~,
     ansi~,
     history~,
+    border~,
+    info~,
+    layout~,
   )
 
   // Handle --select-1: auto-select if only one match

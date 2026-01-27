@@ -289,6 +289,9 @@ async fn async_main() -> Unit {
     on_select=fn(query) {
       write_history_sync(opts.history, query, opts.history_size)
     },
+    border=opts.border,
+    info=opts.info,
+    layout=opts.layout,
   )
 }
 

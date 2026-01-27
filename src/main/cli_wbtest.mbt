@@ -33,6 +33,9 @@ test "cli: default options" {
     ansi: false,
     history: "",
     history_size: 1000,
+    border: "none",
+    info: "default",
+    layout: "default",
   }
   assert_eq(opts.query, "")
   assert_eq(opts.show_help, false)
@@ -266,6 +269,9 @@ test "cli: default new options" {
     ansi: false,
     history: "",
     history_size: 1000,
+    border: "none",
+    info: "default",
+    layout: "default",
   }
   assert_eq(opts.multi, false)
   assert_eq(opts.no_sort, false)

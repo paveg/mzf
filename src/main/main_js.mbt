@@ -245,6 +245,9 @@ async fn js_main() -> Unit {
     on_select=fn(query) {
       write_history_js(opts.history, query, opts.history_size)
     },
+    border=opts.border,
+    info=opts.info,
+    layout=opts.layout,
   )
 }
 

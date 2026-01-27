@@ -35,6 +35,10 @@ struct CliOptions {
   ansi : Bool // Enable ANSI color processing (--ansi)
   history : String // History file path (--history)
   history_size : Int // Maximum history entries (--history-size, default 1000)
+  // Display options
+  border : String // Border style (--border: none, rounded, sharp, horizontal)
+  info : String // Info line style (--info: default, hidden, inline)
+  layout : String // Layout (--layout: default, reverse, reverse-list)
 }
 
 ///|
@@ -80,6 +84,9 @@ fn parse_args() -> CliOptions {
   let mut ansi = false
   let mut history = ""
   let mut history_size = 1000 // Default like fzf
+  let mut border = "none"
+  let mut info = "default"
+  let mut layout = "default"
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -212,6 +219,27 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--history-size=") {
       history_size = parse_int(extract_value(arg, 15))
+    } else if arg == "--border" {
+      i = i + 1
+      if i < args.length() {
+        border = args[i]
+      }
+    } else if arg.has_prefix("--border=") {
+      border = extract_value(arg, 9)
+    } else if arg == "--info" {
+      i = i + 1
+      if i < args.length() {
+        info = args[i]
+      }
+    } else if arg.has_prefix("--info=") {
+      info = extract_value(arg, 7)
+    } else if arg == "--layout" {
+      i = i + 1
+      if i < args.length() {
+        layout = args[i]
+      }
+    } else if arg.has_prefix("--layout=") {
+      layout = extract_value(arg, 9)
     }
     i = i + 1
   }
@@ -244,6 +272,9 @@ fn parse_args() -> CliOptions {
     ansi,
     history,
     history_size,
+    border,
+    info,
+    layout,
   }
 }
 
@@ -284,6 +315,9 @@ fn print_help() -> Unit {
     "    --header <STR>           Header string to display\n" +
     "    --with-nth <N[,M,...]>   Transform display using field indices\n" +
     "    --ansi                   Enable ANSI color processing\n" +
+    "    --border <STYLE>         Border style (none, rounded, sharp, horizontal)\n" +
+    "    --info <STYLE>           Info line style (default, hidden, inline)\n" +
+    "    --layout <LAYOUT>        Layout (default, reverse, reverse-list)\n" +
     "\n" +
     "  Behavior:\n" +
     "    -m, --multi              Enable multi-select (Tab to mark)\n" +
