@@ -1,4 +1,0 @@
-import {
-  "mizchi/tui/core" as @core,
-  "mizchi/crater/types",
-}

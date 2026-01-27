@@ -33,6 +33,14 @@ jobs:
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> $GITHUB_PATH
 
+      - name: Cache mooncakes
+        uses: actions/cache@v4
+        with:
+          path: .mooncakes
+          key: mooncakes-${{ matrix.os }}-${{ hashFiles('moon.mod.json') }}
+          restore-keys: |
+            mooncakes-${{ matrix.os }}-
+
       - name: Install dependencies
         run: |
           moon update
@@ -79,6 +87,14 @@ jobs:
         run: |
           curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
           echo "$HOME/.moon/bin" >> $GITHUB_PATH
+
+      - name: Cache mooncakes
+        uses: actions/cache@v4
+        with:
+          path: .mooncakes
+          key: mooncakes-ubuntu-latest-${{ hashFiles('moon.mod.json') }}
+          restore-keys: |
+            mooncakes-ubuntu-latest-
 
       - name: Install dependencies
         run: |
