@@ -1,6 +1,6 @@
 {
   "name": "paveg/mzf",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "deps": {
     "mizchi/tui": "0.4.1",
     "moonbitlang/async": "0.16.2"
