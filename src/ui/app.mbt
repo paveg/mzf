@@ -843,7 +843,12 @@ pub fn App::render(self : App) -> String {
   // Adjust for border lines (top line is always reserved now for border or spacer)
   let top_line = 1 // Always have top border or spacer line
   let bottom_line = if self.border != "none" { 1 } else { 0 }
-  let max_visible = self.height - 2 - header_lines - info_lines - top_line - bottom_line
+  let max_visible = self.height -
+    2 -
+    header_lines -
+    info_lines -
+    top_line -
+    bottom_line
 
   // Hide cursor and clear screen
   buf.write_string("\u001b[?25l") // Hide cursor
