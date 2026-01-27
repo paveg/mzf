@@ -21,6 +21,9 @@ pub let ansi_dim : String = "\u001b[2m"
 pub let ansi_reverse : String = "\u001b[7m"
 
 ///|
+pub let ansi_magenta : String = "\u001b[35m"
+
+///|
 /// Generate highlighted text with match positions marked
 pub fn highlight_text(
   text : String,

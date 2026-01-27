@@ -131,6 +131,11 @@ pub struct App {
   no_sort : Bool // Don't sort results by score
   nth : String // Field indices for matching
   delimiter : String // Field delimiter
+  // Search options
+  exact : Bool // Exact match mode
+  ignore_case : Bool // Force case insensitive
+  // Display options
+  header : String // Header text
 }
 
 ///|
@@ -147,6 +152,9 @@ pub fn App::new(
   no_sort? : Bool = false,
   nth? : String = "",
   delimiter? : String = "",
+  exact? : Bool = false,
+  ignore_case? : Bool = false,
+  header? : String = "",
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -166,6 +174,9 @@ pub fn App::new(
     no_sort,
     nth,
     delimiter,
+    exact,
+    ignore_case,
+    header,
   }
   // Apply initial filter
   app.update_filter()
@@ -189,6 +200,31 @@ fn App::update_filter(self : App) -> Unit {
       self.delimiter,
       self.no_sort,
     )
+  } else if self.exact {
+    // Exact substring matching
+    if self.no_sort {
+      self.filtered = @core.filter_exact_no_sort(
+        self.query,
+        self.items,
+        self.ignore_case,
+      )
+    } else {
+      self.filtered = @core.filter_exact(
+        self.query,
+        self.items,
+        self.ignore_case,
+      )
+    }
+  } else if self.ignore_case {
+    // Fuzzy matching with forced case insensitivity
+    if self.no_sort {
+      self.filtered = @core.filter_without_sort_ignore_case(
+        self.query,
+        self.items,
+      )
+    } else {
+      self.filtered = @core.filter_and_score_ignore_case(self.query, self.items)
+    }
   } else if self.no_sort {
     // Filter without sorting (keep original order)
     self.filtered = @core.filter_without_sort(self.query, self.items)
@@ -428,7 +464,9 @@ fn string_width(s : String) -> Int {
 /// Render the UI
 pub fn App::render(self : App) -> String {
   let buf = StringBuilder::new()
-  let max_visible = self.height - 3 // Reserve lines for prompt and status
+  // Reserve lines for prompt, status, and header if present
+  let header_lines = if self.header.length() > 0 { 1 } else { 0 }
+  let max_visible = self.height - 3 - header_lines
 
   // Hide cursor and move to top
   buf.write_string("\u001b[?25l") // Hide cursor
@@ -452,6 +490,14 @@ pub fn App::render(self : App) -> String {
     buf.write_string(self.items.length().to_string())
     buf.write_string(ansi_reset)
     buf.write_string("\r\n")
+
+    // Header (if present)
+    if self.header.length() > 0 {
+      buf.write_string(ansi_magenta)
+      buf.write_string(self.header)
+      buf.write_string(ansi_reset)
+      buf.write_string("\r\n")
+    }
 
     // Fill empty lines first
     for j = visible_count; j < max_visible; j = j + 1 {
@@ -507,6 +553,14 @@ pub fn App::render(self : App) -> String {
     buf.write_string(ansi_reset)
     buf.write_string("\r\n")
 
+    // Header (if present)
+    if self.header.length() > 0 {
+      buf.write_string(ansi_magenta)
+      buf.write_string(self.header)
+      buf.write_string(ansi_reset)
+      buf.write_string("\r\n")
+    }
+
     // Render items
     for i = 0; i < visible_count; i = i + 1 {
       self.render_item(buf, i)
@@ -552,6 +606,12 @@ pub fn App::is_running(self : App) -> Bool {
 /// Get result
 pub fn App::get_result(self : App) -> String? {
   self.result
+}
+
+///|
+/// Get current query string
+pub fn App::get_query(self : App) -> String {
+  self.query
 }
 
 ///|

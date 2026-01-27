@@ -9,7 +9,7 @@ struct CliOptions {
   prompt : String // Prompt string (--prompt)
   pointer : String // Pointer/cursor string (--pointer)
   marker : String // Marker string for multi-select (--marker)
-  // New behavior options
+  // Behavior options
   multi : Bool // Enable multi-select (-m, --multi)
   no_sort : Bool // Don't sort results (--no-sort)
   tac : Bool // Reverse input order (--tac)
@@ -19,6 +19,14 @@ struct CliOptions {
   print0 : Bool // Use NUL separator (--print0)
   nth : String // Field index for matching (-n, --nth)
   delimiter : String // Field delimiter (-d, --delimiter)
+  // Search options
+  exact : Bool // Exact match mode (-e, --exact)
+  ignore_case : Bool // Force case insensitive (-i, --ignore-case)
+  // Input/Output options
+  read0 : Bool // Read NUL-delimited input (--read0)
+  filter : String // Non-interactive filter mode (-f, --filter)
+  print_query : Bool // Print query as first line (--print-query)
+  header : String // Header string (--header)
 }
 
 ///|
@@ -53,6 +61,12 @@ fn parse_args() -> CliOptions {
   let mut print0 = false
   let mut nth = ""
   let mut delimiter = ""
+  let mut exact = false
+  let mut ignore_case = false
+  let mut read0 = false
+  let mut filter = ""
+  let mut print_query = false
+  let mut header = ""
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -76,6 +90,14 @@ fn parse_args() -> CliOptions {
       exit_0 = true
     } else if arg == "--print0" {
       print0 = true
+    } else if arg == "-e" || arg == "--exact" {
+      exact = true
+    } else if arg == "-i" || arg == "--ignore-case" {
+      ignore_case = true
+    } else if arg == "--read0" {
+      read0 = true
+    } else if arg == "--print-query" {
+      print_query = true
     } else if arg == "-q" || arg == "--query" {
       i = i + 1
       if i < args.length() {
@@ -131,6 +153,22 @@ fn parse_args() -> CliOptions {
       delimiter = extract_value(arg, 12)
     } else if arg.has_prefix("-d=") {
       delimiter = extract_value(arg, 3)
+    } else if arg == "-f" || arg == "--filter" {
+      i = i + 1
+      if i < args.length() {
+        filter = args[i]
+      }
+    } else if arg.has_prefix("--filter=") {
+      filter = extract_value(arg, 9)
+    } else if arg.has_prefix("-f=") {
+      filter = extract_value(arg, 3)
+    } else if arg == "--header" {
+      i = i + 1
+      if i < args.length() {
+        header = args[i]
+      }
+    } else if arg.has_prefix("--header=") {
+      header = extract_value(arg, 9)
     }
     i = i + 1
   }
@@ -152,6 +190,12 @@ fn parse_args() -> CliOptions {
     print0,
     nth,
     delimiter,
+    exact,
+    ignore_case,
+    read0,
+    filter,
+    print_query,
+    header,
   }
 }
 
@@ -178,6 +222,8 @@ fn print_help() -> Unit {
     "OPTIONS:\n" +
     "  Search:\n" +
     "    -q, --query <QUERY>      Start with the given query\n" +
+    "    -e, --exact              Exact-match mode (substring)\n" +
+    "    -i, --ignore-case        Force case-insensitive matching\n" +
     "    -n, --nth <N[,M,...]>    Match only in specified fields\n" +
     "    -d, --delimiter <STR>    Field delimiter (default: none)\n" +
     "\n" +
@@ -187,6 +233,7 @@ fn print_help() -> Unit {
     "    --prompt <STR>           Input prompt (default: \"> \")\n" +
     "    --pointer <STR>          Pointer to current line (default: \"> \")\n" +
     "    --marker <STR>           Multi-select marker (default: \"*\")\n" +
+    "    --header <STR>           Header string to display\n" +
     "\n" +
     "  Behavior:\n" +
     "    -m, --multi              Enable multi-select\n" +
@@ -195,7 +242,12 @@ fn print_help() -> Unit {
     "    --cycle                  Enable cyclic scroll\n" +
     "    -1, --select-1           Auto-select if single match\n" +
     "    -0, --exit-0             Exit immediately if no match\n" +
+    "\n" +
+    "  Input/Output:\n" +
+    "    --read0                  Read NUL-delimited input\n" +
     "    --print0                 Use NUL separator for output\n" +
+    "    -f, --filter <QUERY>     Filter mode (non-interactive)\n" +
+    "    --print-query            Print query as first line of output\n" +
     "\n" +
     "  Other:\n" +
     "    -h, --help               Show this help message\n" +
@@ -214,7 +266,8 @@ fn print_help() -> Unit {
     "    ls | mzf -q txt\n" +
     "    ls | mzf --reverse --pointer='▶ ' --marker='✓'\n" +
     "    ps aux | mzf -n 1,2 -d ' '  # Match process name and user\n" +
-    "    mzf --cycle --no-sort < file.txt\n"
+    "    echo -e 'foo\\nbar' | mzf -e -q oo  # Exact match\n" +
+    "    find . | mzf -f src  # Filter mode (non-interactive)\n"
   println(help)
 }
 

@@ -190,3 +190,173 @@ pub fn filter_without_sort(
   // No sorting - keep original order
   results
 }
+
+///|
+/// Exact substring match - only match if pattern is a contiguous substring
+/// Returns Some((score, match_positions)) if matched, None otherwise
+pub fn exact_match(
+  pattern : String,
+  text : String,
+  force_case_insensitive : Bool,
+) -> (Int, Array[Int])? {
+  if pattern.length() == 0 {
+    return Some((0, []))
+  }
+  if text.length() == 0 || pattern.length() > text.length() {
+    return None
+  }
+  // Use smart case unless force_case_insensitive is true
+  let case_sensitive = if force_case_insensitive {
+    false
+  } else {
+    has_uppercase(pattern)
+  }
+  let pattern_chars : Array[Char] = pattern.iter().collect()
+  let text_chars : Array[Char] = text.iter().collect()
+
+  // Find contiguous substring match
+  for start = 0
+      start <= text_chars.length() - pattern_chars.length()
+      start = start + 1 {
+    let mut matched = true
+    for i = 0; i < pattern_chars.length(); i = i + 1 {
+      if not(
+          chars_match(pattern_chars[i], text_chars[start + i], case_sensitive),
+        ) {
+        matched = false
+        break
+      }
+    }
+    if matched {
+      // Build positions array
+      let positions : Array[Int] = []
+      for i = 0; i < pattern_chars.length(); i = i + 1 {
+        positions.push(start + i)
+      }
+      // Score based on match position (earlier = better)
+      let score = 100 - start
+      return Some((score, positions))
+    }
+  }
+  None
+}
+
+///|
+/// Filter with exact matching and score sorting
+pub fn filter_exact(
+  pattern : String,
+  items : Array[Item],
+  force_case_insensitive : Bool,
+) -> Array[MatchResult] {
+  let results : Array[MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    match exact_match(pattern, item.text, force_case_insensitive) {
+      Some((score, positions)) =>
+        results.push(MatchResult::new(item, score, positions))
+      None => ()
+    }
+  }
+  // Sort by score (descending)
+  results.sort_by(fn(a, b) { b.score - a.score })
+  results
+}
+
+///|
+/// Filter with exact matching without sorting
+pub fn filter_exact_no_sort(
+  pattern : String,
+  items : Array[Item],
+  force_case_insensitive : Bool,
+) -> Array[MatchResult] {
+  let results : Array[MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    match exact_match(pattern, item.text, force_case_insensitive) {
+      Some((score, positions)) =>
+        results.push(MatchResult::new(item, score, positions))
+      None => ()
+    }
+  }
+  results
+}
+
+///|
+/// Filter with fuzzy matching and forced case insensitivity
+pub fn filter_and_score_ignore_case(
+  pattern : String,
+  items : Array[Item],
+) -> Array[MatchResult] {
+  let results : Array[MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    match fuzzy_match_ignore_case(pattern, item.text) {
+      Some((score, positions)) =>
+        results.push(MatchResult::new(item, score, positions))
+      None => ()
+    }
+  }
+  // Sort by score (descending)
+  results.sort_by(fn(a, b) { b.score - a.score })
+  results
+}
+
+///|
+/// Filter without sorting with forced case insensitivity
+pub fn filter_without_sort_ignore_case(
+  pattern : String,
+  items : Array[Item],
+) -> Array[MatchResult] {
+  let results : Array[MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    match fuzzy_match_ignore_case(pattern, item.text) {
+      Some((score, positions)) =>
+        results.push(MatchResult::new(item, score, positions))
+      None => ()
+    }
+  }
+  results
+}
+
+///|
+/// Fuzzy match with forced case insensitivity
+pub fn fuzzy_match_ignore_case(
+  pattern : String,
+  text : String,
+) -> (Int, Array[Int])? {
+  if pattern.length() == 0 {
+    return Some((0, []))
+  }
+  if text.length() == 0 {
+    return None
+  }
+  // Always case insensitive
+  let case_sensitive = false
+  let pattern_chars : Array[Char] = pattern.iter().collect()
+  let text_chars : Array[Char] = text.iter().collect()
+
+  // First pass: check if all pattern chars exist in text (in order)
+  let positions : Array[Int] = []
+  let mut pattern_idx = 0
+  for text_idx = 0; text_idx < text_chars.length(); text_idx = text_idx + 1 {
+    if pattern_idx < pattern_chars.length() &&
+      chars_match(
+        pattern_chars[pattern_idx],
+        text_chars[text_idx],
+        case_sensitive,
+      ) {
+      positions.push(text_idx)
+      pattern_idx = pattern_idx + 1
+    }
+  }
+
+  // If not all pattern chars matched, return None
+  if pattern_idx < pattern_chars.length() {
+    return None
+  }
+
+  // Calculate score
+  let score = calculate_score(text_chars, positions)
+  Some((score, positions))
+}

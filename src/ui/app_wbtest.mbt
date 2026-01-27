@@ -537,3 +537,88 @@ test "delimiter: custom delimiter" {
   let app = App::new(items, 80, 24, delimiter="|")
   assert_eq(app.delimiter, "|")
 }
+
+// =============================================================================
+// Exact Match Tests (TDD)
+// =============================================================================
+
+///|
+test "exact: matches substring exactly" {
+  let items = [
+    @core.Item::new("foobar", 0),
+    @core.Item::new("foXobar", 1),
+    @core.Item::new("foo", 2),
+  ]
+  let app = App::new(items, 80, 24, initial_query="foo", exact=true)
+  // Exact mode: only "foobar" and "foo" contain "foo" as substring
+  // "foXobar" should NOT match because "foo" is not a contiguous substring
+  assert_eq(app.filtered.length(), 2)
+}
+
+///|
+test "exact: no fuzzy matching" {
+  let items = [@core.Item::new("abc", 0), @core.Item::new("aXbXc", 1)]
+  let app = App::new(items, 80, 24, initial_query="abc", exact=true)
+  // Only "abc" should match, not "aXbXc"
+  assert_eq(app.filtered.length(), 1)
+  assert_eq(app.filtered[0].item.text, "abc")
+}
+
+///|
+test "exact: default is fuzzy" {
+  let items = [@core.Item::new("abc", 0), @core.Item::new("aXbXc", 1)]
+  let app = App::new(items, 80, 24, initial_query="abc", exact=false)
+  // Both should match with fuzzy
+  assert_eq(app.filtered.length(), 2)
+}
+
+// =============================================================================
+// Ignore Case Tests (TDD)
+// =============================================================================
+
+///|
+test "ignore_case: forces case insensitive" {
+  let items = [
+    @core.Item::new("ABC", 0),
+    @core.Item::new("abc", 1),
+    @core.Item::new("Abc", 2),
+  ]
+  let app = App::new(items, 80, 24, initial_query="ABC", ignore_case=true)
+  // All should match with ignore_case
+  assert_eq(app.filtered.length(), 3)
+}
+
+///|
+test "ignore_case: default uses smart case" {
+  let items = [@core.Item::new("ABC", 0), @core.Item::new("abc", 1)]
+  let app = App::new(items, 80, 24, initial_query="ABC", ignore_case=false)
+  // Smart case: uppercase query = case sensitive, only "ABC" matches
+  assert_eq(app.filtered.length(), 1)
+  assert_eq(app.filtered[0].item.text, "ABC")
+}
+
+// =============================================================================
+// Header Tests (TDD)
+// =============================================================================
+
+///|
+test "header: default is empty" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.header, "")
+}
+
+///|
+test "header: custom header" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24, header="Select a file:")
+  assert_eq(app.header, "Select a file:")
+}
+
+///|
+test "header: render includes header" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24, header="My Header")
+  let output = app.render()
+  assert_true(output.contains("My Header"))
+}

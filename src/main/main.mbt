@@ -33,6 +33,10 @@ fn run_app(
   select_1? : Bool = false,
   exit_0? : Bool = false,
   print0? : Bool = false,
+  exact? : Bool = false,
+  ignore_case? : Bool = false,
+  header? : String = "",
+  print_query? : Bool = false,
 ) -> Unit {
   if items.length() == 0 {
     if exit_0 {
@@ -54,12 +58,24 @@ fn run_app(
     no_sort~,
     nth~,
     delimiter~,
+    exact~,
+    ignore_case~,
+    header~,
   )
 
   // Handle --select-1: auto-select if only one match
   if select_1 && app.filtered_count() == 1 {
     match app.get_first_filtered() {
       Some(text) => {
+        // Print query first if requested
+        if print_query {
+          if print0 {
+            @io.print_raw(app.get_query())
+            @io.print_raw("\u0000")
+          } else {
+            println(app.get_query())
+          }
+        }
         if print0 {
           @io.print_raw(text)
           @io.print_raw("\u0000")
@@ -104,7 +120,16 @@ fn run_app(
 
       // Output result
       match app.get_result() {
-        Some(result) =>
+        Some(result) => {
+          // Print query first if requested
+          if print_query {
+            if print0 {
+              @io.print_raw(app.get_query())
+              @io.print_raw("\u0000")
+            } else {
+              println(app.get_query())
+            }
+          }
           if print0 {
             // Use NUL separator for xargs -0
             let lines = split_lines(result)
@@ -115,6 +140,7 @@ fn run_app(
           } else {
             println(result)
           }
+        }
         None => ()
       }
     }

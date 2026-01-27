@@ -21,7 +21,6 @@ fn main {
 
   // Apply --tac if specified (reverse input order)
   let items = if opts.tac { reverse_items(raw_items) } else { raw_items }
-
   run_app(
     items,
     width,
@@ -38,5 +37,9 @@ fn main {
     select_1=opts.select_1,
     exit_0=opts.exit_0,
     print0=opts.print0,
+    exact=opts.exact,
+    ignore_case=opts.ignore_case,
+    header=opts.header,
+    print_query=opts.print_query,
   )
 }

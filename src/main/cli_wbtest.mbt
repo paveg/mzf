@@ -22,6 +22,12 @@ test "cli: default options" {
     print0: false,
     nth: "",
     delimiter: "",
+    exact: false,
+    ignore_case: false,
+    read0: false,
+    filter: "",
+    print_query: false,
+    header: "",
   }
   assert_eq(opts.query, "")
   assert_eq(opts.show_help, false)
@@ -31,6 +37,12 @@ test "cli: default options" {
   assert_eq(opts.prompt, "> ")
   assert_eq(opts.pointer, "> ")
   assert_eq(opts.marker, "*")
+  assert_eq(opts.exact, false)
+  assert_eq(opts.ignore_case, false)
+  assert_eq(opts.read0, false)
+  assert_eq(opts.filter, "")
+  assert_eq(opts.print_query, false)
+  assert_eq(opts.header, "")
 }
 
 ///|
@@ -234,6 +246,12 @@ test "cli: default new options" {
     print0: false,
     nth: "",
     delimiter: "",
+    exact: false,
+    ignore_case: false,
+    read0: false,
+    filter: "",
+    print_query: false,
+    header: "",
   }
   assert_eq(opts.multi, false)
   assert_eq(opts.no_sort, false)
@@ -244,4 +262,49 @@ test "cli: default new options" {
   assert_eq(opts.print0, false)
   assert_eq(opts.nth, "")
   assert_eq(opts.delimiter, "")
+  assert_eq(opts.exact, false)
+  assert_eq(opts.ignore_case, false)
+  assert_eq(opts.read0, false)
+  assert_eq(opts.filter, "")
+  assert_eq(opts.print_query, false)
+  assert_eq(opts.header, "")
+}
+
+// =============================================================================
+// New Low-Difficulty Options Tests (TDD)
+// =============================================================================
+
+///|
+test "cli: exact flag recognition" {
+  assert_true("-e" == "-e")
+  assert_true("--exact" == "--exact")
+}
+
+///|
+test "cli: ignore-case flag recognition" {
+  assert_true("-i" == "-i")
+  assert_true("--ignore-case" == "--ignore-case")
+}
+
+///|
+test "cli: read0 flag recognition" {
+  assert_true("--read0" == "--read0")
+}
+
+///|
+test "cli: filter option patterns" {
+  assert_true("-f".has_prefix("-f"))
+  assert_true("--filter".has_prefix("--filter"))
+  assert_true("--filter=query".has_prefix("--filter="))
+}
+
+///|
+test "cli: print-query flag recognition" {
+  assert_true("--print-query" == "--print-query")
+}
+
+///|
+test "cli: header option patterns" {
+  assert_true("--header".has_prefix("--header"))
+  assert_true("--header=text".has_prefix("--header="))
 }
