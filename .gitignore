@@ -6,8 +6,8 @@ target/
 # Local native build helpers (using tui's tui_native.c instead)
 native/
 
-# Dependencies (managed by moon)
-.mooncakes/
+# Dependencies - vendored for CI reliability
+# .mooncakes/  # Uncomment to ignore (if using moon install in CI)
 
 # IDE
 .idea/

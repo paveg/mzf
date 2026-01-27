@@ -1,0 +1,17 @@
+import {
+  "moonbitlang/core/strconv",
+  "mizchi/crater/html",
+  "mizchi/crater/css/computed",
+  "mizchi/crater/css/parser",
+  "mizchi/crater/css/selector",
+  "mizchi/crater/css/cascade",
+  "mizchi/crater/css/media",
+  "mizchi/crater/layout/node",
+  "mizchi/crater/style",
+  "mizchi/crater/types",
+  "mizchi/crater/layout/dispatch",
+  "mizchi/crater/x/sixel",
+}
+
+import "wbtest" {
+}

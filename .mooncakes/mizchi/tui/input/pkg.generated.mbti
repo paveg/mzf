@@ -1,0 +1,83 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/tui/input"
+
+import {
+  "mizchi/tui/events",
+}
+
+// Values
+pub fn interpret_key(@events.KeyEvent, TextInputConfig) -> EditAction
+
+// Errors
+
+// Types and methods
+pub(all) struct DisplayState {
+  lines : Array[LineInfo]
+  cursor_line : Int
+  cursor_col : Int
+  scroll_offset : Int
+  has_more_above : Bool
+  has_more_below : Bool
+  total_lines : Int
+}
+pub impl Show for DisplayState
+
+pub(all) enum EditAction {
+  Insert(String)
+  DeleteBackward
+  DeleteForward
+  DeleteToLineStart
+  DeleteToLineEnd
+  MoveCursorLeft
+  MoveCursorRight
+  MoveCursorUp
+  MoveCursorDown
+  MoveToLineStart
+  MoveToLineEnd
+  Confirm
+  Cancel
+  Tab
+  BackTab
+  ForceQuit
+  NewLine
+  None
+}
+pub impl Eq for EditAction
+pub impl Show for EditAction
+
+pub(all) struct LineInfo {
+  start_idx : Int
+  chars : Array[Char]
+}
+pub impl Eq for LineInfo
+pub impl Show for LineInfo
+
+pub(all) struct TextInputConfig {
+  mut width : Int
+  mut height : Int
+  multiline : Bool
+  confirm_on_shift_enter : Bool
+  esc_cancels : Bool
+}
+pub fn TextInputConfig::new(Int, Int, multiline? : Bool, confirm_on_shift_enter? : Bool, esc_cancels? : Bool) -> Self
+pub impl Show for TextInputConfig
+
+pub(all) struct TextInputController {
+  mut buffer : Array[Char]
+  mut cursor_pos : Int
+  mut scroll_offset : Int
+  mut config : TextInputConfig
+}
+pub fn TextInputController::apply_action(Self, EditAction) -> Bool
+pub fn TextInputController::get_cursor_pos(Self) -> Int
+pub fn TextInputController::get_display_state(Self) -> DisplayState
+pub fn TextInputController::get_text(Self) -> String
+pub fn TextInputController::new(TextInputConfig, String) -> Self
+pub fn TextInputController::resize(Self, Int, Int) -> Unit
+pub fn TextInputController::set_cursor_pos(Self, Int) -> Unit
+pub fn TextInputController::set_text(Self, String) -> Unit
+
+// Type aliases
+
+// Traits
+

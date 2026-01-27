@@ -1,0 +1,14 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "mizchi/tui/examples/completion"
+
+// Values
+
+// Errors
+
+// Types and methods
+type DemoState
+
+// Type aliases
+
+// Traits
+

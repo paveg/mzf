@@ -1,0 +1,6 @@
+import {
+  "mizchi/crater/aom",
+}
+
+import "wbtest" {
+}
