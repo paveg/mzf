@@ -42,10 +42,8 @@ fn run_app(
   expect? : String = "",
   ansi? : Bool = false,
   history? : Array[String] = [],
-  history_file? : String = "",
+  on_select? : (String) -> Unit = fn(_q) {  },
 ) -> Unit {
-  // Store history_file for writing later (unused for now, requires async)
-  ignore(history_file)
   if items.length() == 0 {
     if exit_0 {
       // Exit immediately with no output
@@ -143,6 +141,9 @@ fn run_app(
       // Output result
       match app.get_result() {
         Some(result) => {
+          // Write history on successful selection
+          let query = app.get_query()
+          on_select(query)
           // Print expected key if --expect was used
           let pressed = app.get_pressed_key()
           if expect.length() > 0 {
@@ -156,10 +157,10 @@ fn run_app(
           // Print query first if requested
           if print_query {
             if print0 {
-              @io.print_raw(app.get_query())
+              @io.print_raw(query)
               @io.print_raw("\u0000")
             } else {
-              println(app.get_query())
+              println(query)
             }
           }
           if print0 {

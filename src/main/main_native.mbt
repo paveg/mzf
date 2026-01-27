@@ -59,7 +59,102 @@ fn stdin_is_tty() -> Bool {
 }
 
 ///|
-/// Read history file and return lines as array
+/// FFI: Read file contents (sync) - returns content as Bytes and length
+extern "c" fn tui_read_file(
+  path : Bytes,
+  path_len : Int,
+  out_len : FixedArray[Int],
+) -> Bytes = "tui_read_file"
+
+///|
+/// FFI: Write file contents (sync)
+extern "c" fn tui_write_file(
+  path : Bytes,
+  path_len : Int,
+  content : Bytes,
+  content_len : Int,
+) -> Int = "tui_write_file"
+
+///|
+/// Read history file synchronously and return lines as array
+fn read_history_file_sync(path : String) -> Array[String] {
+  let history : Array[String] = []
+  if path.length() == 0 {
+    return history
+  }
+  let path_bytes = @utf8.encode(path)
+  let out_len : FixedArray[Int] = [0]
+  let content_bytes = tui_read_file(path_bytes, path_bytes.length(), out_len)
+  if out_len[0] == 0 {
+    return history
+  }
+  // Convert bytes to string
+  let content = @utf8.decode(content_bytes) catch {
+    _ => return history // Invalid UTF-8
+  }
+  // Split by newlines
+  let chars : Array[Char] = content.iter().collect()
+  let buf = StringBuilder::new()
+  for i = 0; i < chars.length(); i = i + 1 {
+    if chars[i] == '\n' {
+      let line = buf.to_string()
+      if line.length() > 0 {
+        history.push(line)
+      }
+      buf.reset()
+    } else if chars[i] != '\r' {
+      buf.write_char(chars[i])
+    }
+  }
+  // Handle last line without newline
+  let last_line = buf.to_string()
+  if last_line.length() > 0 {
+    history.push(last_line)
+  }
+  history
+}
+
+///|
+/// Write history file synchronously (fzf-compatible: read, append, truncate, write)
+pub fn write_history_sync(
+  path : String,
+  query : String,
+  max_size : Int,
+) -> Unit {
+  if path.length() == 0 || query.length() == 0 {
+    return
+  }
+  // Read existing history
+  let history = read_history_file_sync(path)
+  // Append new query
+  history.push(query)
+  // Truncate if exceeds max_size
+  let start = if history.length() > max_size {
+    history.length() - max_size
+  } else {
+    0
+  }
+  // Build output
+  let buf = StringBuilder::new()
+  for i = start; i < history.length(); i = i + 1 {
+    buf.write_string(history[i])
+    buf.write_string("\n")
+  }
+  // Write to file
+  let path_bytes = @utf8.encode(path)
+  let content_bytes = @utf8.encode(buf.to_string())
+  ignore(
+    tui_write_file(
+      path_bytes,
+      path_bytes.length(),
+      content_bytes,
+      content_bytes.length(),
+    ),
+  )
+}
+
+///|
+/// Read history file and return lines as array (for startup loading)
 async fn read_history_file(path : String) -> Array[String] {
   let history : Array[String] = []
   if path.length() == 0 {
@@ -92,38 +187,6 @@ async fn read_history_file(path : String) -> Array[String] {
 }
 
 ///|
-/// Write query to history file (append)
-async fn write_history(path : String, query : String) -> Unit {
-  if path.length() == 0 || query.length() == 0 {
-    return
-  }
-  // Read existing history
-  let history = read_history_file(path)
-  // Remove duplicates of the new query
-  let new_history : Array[String] = []
-  for entry in history {
-    if entry != query {
-      new_history.push(entry)
-    }
-  }
-  new_history.push(query)
-  // Write back to file (limit to 1000 entries)
-  let start = if new_history.length() > 1000 {
-    new_history.length() - 1000
-  } else {
-    0
-  }
-  let buf = StringBuilder::new()
-  for i = start; i < new_history.length(); i = i + 1 {
-    buf.write_string(new_history[i])
-    buf.write_string("\n")
-  }
-  @fs.write_file(path, buf.to_string(), create=0o644) catch {
-    _ => () // Ignore write errors
-  }
-}
-
-///|
 async fn async_main() -> Unit {
   // Parse CLI options
   let opts = parse_args()
@@ -135,9 +198,6 @@ async fn async_main() -> Unit {
     print_version()
     return
   }
-
-  // Reserve write_history for future use (history writing on exit)
-  ignore(write_history)
 
   // Get terminal size
   let (width, term_height) = @io.get_terminal_size()
@@ -226,7 +286,9 @@ async fn async_main() -> Unit {
     expect=opts.expect,
     ansi=opts.ansi,
     history~,
-    history_file=opts.history,
+    on_select=fn(query) {
+      write_history_sync(opts.history, query, opts.history_size)
+    },
   )
 }
 

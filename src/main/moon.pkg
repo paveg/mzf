@@ -8,6 +8,7 @@ import {
   "moonbitlang/async/fs" as @fs,
   "moonbitlang/async/js_async" as @js_async,
   "moonbitlang/core/env" as @env,
+  "moonbitlang/core/encoding/utf8" as @utf8,
 }
 
 options(

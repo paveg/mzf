@@ -163,6 +163,82 @@ void tui_sleep_ms(int ms) {
     usleep(ms * 1000);
 }
 
+// Append a line to a file (for history)
+// Creates file if it doesn't exist
+// Returns 0 on success, -1 on error
+int tui_append_to_file(const char* path, int path_len, const char* content, int content_len) {
+    // Null-terminate the path (create a copy)
+    char* path_str = malloc(path_len + 1);
+    if (!path_str) return -1;
+    memcpy(path_str, path, path_len);
+    path_str[path_len] = '\0';
+
+    FILE* f = fopen(path_str, "a");
+    free(path_str);
+    if (!f) return -1;
+
+    fwrite(content, 1, content_len, f);
+    fwrite("\n", 1, 1, f);
+    fclose(f);
+    return 0;
+}
+
+// Read entire file contents (for history)
+// Returns allocated buffer (caller must free) or NULL on error
+// Sets *out_len to the length of the content
+char* tui_read_file(const char* path, int path_len, int* out_len) {
+    *out_len = 0;
+
+    // Null-terminate the path
+    char* path_str = malloc(path_len + 1);
+    if (!path_str) return NULL;
+    memcpy(path_str, path, path_len);
+    path_str[path_len] = '\0';
+
+    FILE* f = fopen(path_str, "r");
+    free(path_str);
+    if (!f) return NULL;
+
+    // Get file size
+    fseek(f, 0, SEEK_END);
+    long size = ftell(f);
+    fseek(f, 0, SEEK_SET);
+
+    if (size <= 0) {
+        fclose(f);
+        return NULL;
+    }
+
+    char* buf = malloc(size + 1);
+    if (!buf) {
+        fclose(f);
+        return NULL;
+    }
+
+    size_t read_size = fread(buf, 1, size, f);
+    fclose(f);
+
+    buf[read_size] = '\0';
+    *out_len = (int)read_size;
+    return buf;
+}
+
+// Write entire file contents (for history, overwrites)
+int tui_write_file(const char* path, int path_len, const char* content, int content_len) {
+    char* path_str = malloc(path_len + 1);
+    if (!path_str) return -1;
+    memcpy(path_str, path, path_len);
+    path_str[path_len] = '\0';
+
+    FILE* f = fopen(path_str, "w");
+    free(path_str);
+    if (!f) return -1;
+
+    fwrite(content, 1, content_len, f);
+    fclose(f);
+    return 0;
+}
+
 // Get current time in milliseconds (monotonic, relative to first call)
 #include <time.h>
 

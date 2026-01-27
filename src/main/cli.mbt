@@ -34,6 +34,7 @@ struct CliOptions {
   // Advanced options
   ansi : Bool // Enable ANSI color processing (--ansi)
   history : String // History file path (--history)
+  history_size : Int // Maximum history entries (--history-size, default 1000)
 }
 
 ///|
@@ -78,6 +79,7 @@ fn parse_args() -> CliOptions {
   let mut expect = ""
   let mut ansi = false
   let mut history = ""
+  let mut history_size = 1000 // Default like fzf
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -203,6 +205,13 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--history=") {
       history = extract_value(arg, 10)
+    } else if arg == "--history-size" {
+      i = i + 1
+      if i < args.length() {
+        history_size = parse_int(args[i])
+      }
+    } else if arg.has_prefix("--history-size=") {
+      history_size = parse_int(extract_value(arg, 15))
     }
     i = i + 1
   }
@@ -234,6 +243,7 @@ fn parse_args() -> CliOptions {
     expect,
     ansi,
     history,
+    history_size,
   }
 }
 
@@ -285,11 +295,12 @@ fn print_help() -> Unit {
     "    --expect <KEYS>          Comma-separated keys to abort\n" +
     "\n" +
     "  Input/Output:\n" +
-    "    --read0                  Read NUL-delimited input [native]\n" +
+    "    --read0                  Read NUL-delimited input\n" +
     "    --print0                 Use NUL separator for output\n" +
-    "    -f, --filter <QUERY>     Filter mode (non-interactive) [native]\n" +
+    "    -f, --filter <QUERY>     Filter mode (non-interactive)\n" +
     "    --print-query            Print query as first line of output\n" +
     "    --history <FILE>         History file path [native]\n" +
+    "    --history-size <N>       Maximum history size (default: 1000) [native]\n" +
     "\n" +
     "  Other:\n" +
     "    -h, --help               Show this help message\n" +
