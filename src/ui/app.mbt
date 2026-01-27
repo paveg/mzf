@@ -841,6 +841,7 @@ pub fn App::render(self : App) -> String {
   buf.write_string("\u001b[?25l") // Hide cursor
   buf.write_string("\u001b[H") // Move to home
   buf.write_string("\u001b[J") // Clear from cursor to end
+  buf.write_string(ansi_reset) // Reset all attributes to ensure clean state
   let visible_count = if self.filtered.length() > max_visible {
     max_visible
   } else {
