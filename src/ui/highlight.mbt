@@ -91,7 +91,7 @@ pub struct ColorScheme {
 /// Default color scheme
 pub fn ColorScheme::default() -> ColorScheme {
   {
-    fg: "\u001b[96m", // Bright cyan foreground for query (highly visible)
+    fg: "\u001b[37m", // White foreground for query
     prompt: ansi_yellow,
     pointer: ansi_cyan,
     marker: ansi_green,
