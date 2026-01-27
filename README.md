@@ -79,6 +79,9 @@ ls | mzf --history ~/.mzf_history
 # Preserve ANSI colors
 ls --color=always | mzf --ansi
 
+# Custom color scheme
+ls | mzf --color=prompt:red,pointer:blue,hl:green
+
 # Show help
 mzf --help
 ```
@@ -122,6 +125,7 @@ mzf --help
 | `--border <STYLE>` | Border style (none, rounded, sharp, horizontal) |
 | `--info <STYLE>` | Info line style (default, hidden, inline) |
 | `--layout <LAYOUT>` | Layout (default, reverse, reverse-list) |
+| `--color <SPEC>` | Color scheme (prompt:yellow,pointer:cyan,...) |
 
 ### Behavior
 
