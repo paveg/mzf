@@ -16,6 +16,89 @@ extern "js" fn js_read_stdin_all() -> @js_async.Promise[String] =
   #| }
 
 ///|
+/// Read file contents (sync, for history)
+extern "js" fn js_read_file_sync(path : String) -> String =
+  #| (path) => {
+  #|   try {
+  #|     const fs = require('fs');
+  #|     return fs.readFileSync(path, 'utf8');
+  #|   } catch (e) {
+  #|     return '';
+  #|   }
+  #| }
+
+///|
+/// Write file contents (sync, for history)
+extern "js" fn js_write_file_sync(path : String, content : String) -> Unit =
+  #| (path, content) => {
+  #|   try {
+  #|     const fs = require('fs');
+  #|     fs.writeFileSync(path, content, 'utf8');
+  #|   } catch (e) {
+  #|     // Ignore write errors
+  #|   }
+  #| }
+
+///|
+/// Read history file and return lines as array (JS version)
+fn read_history_file_js(path : String) -> Array[String] {
+  let history : Array[String] = []
+  if path.length() == 0 {
+    return history
+  }
+  let content = js_read_file_sync(path)
+  if content.length() == 0 {
+    return history
+  }
+  // Split by newlines
+  let chars : Array[Char] = content.iter().collect()
+  let buf = StringBuilder::new()
+  for i = 0; i < chars.length(); i = i + 1 {
+    if chars[i] == '\n' {
+      let line = buf.to_string()
+      if line.length() > 0 {
+        history.push(line)
+      }
+      buf.reset()
+    } else if chars[i] != '\r' {
+      buf.write_char(chars[i])
+    }
+  }
+  // Handle last line without newline
+  let last_line = buf.to_string()
+  if last_line.length() > 0 {
+    history.push(last_line)
+  }
+  history
+}
+
+///|
+/// Write history file (fzf-compatible: read, append, truncate, write)
+fn write_history_js(path : String, query : String, max_size : Int) -> Unit {
+  if path.length() == 0 || query.length() == 0 {
+    return
+  }
+  // Read existing history
+  let history = read_history_file_js(path)
+  // Append new query
+  history.push(query)
+  // Truncate if exceeds max_size
+  let start = if history.length() > max_size {
+    history.length() - max_size
+  } else {
+    0
+  }
+  // Build output
+  let buf = StringBuilder::new()
+  for i = start; i < history.length(); i = i + 1 {
+    buf.write_string(history[i])
+    buf.write_string("\n")
+  }
+  // Write to file
+  js_write_file_sync(path, buf.to_string())
+}
+
+///|
 /// Parse stdin content into Items
 fn parse_stdin_to_items(content : String, read0 : Bool) -> Array[@core.Item] {
   let items : Array[@core.Item] = []
@@ -72,9 +155,6 @@ async fn js_main() -> Unit {
     print_version()
     return
   }
-
-  // JS target: history not supported (no file I/O yet)
-  ignore(opts.history)
 
   // Get terminal size
   let (width, term_height) = @io.get_terminal_size()
@@ -135,8 +215,8 @@ async fn js_main() -> Unit {
     return
   }
 
-  // JS target: history not supported
-  let history : Array[String] = []
+  // Load history from file
+  let history = read_history_file_js(opts.history)
   run_app(
     items,
     width,
@@ -162,6 +242,9 @@ async fn js_main() -> Unit {
     expect=opts.expect,
     ansi=opts.ansi,
     history~,
+    on_select=fn(query) {
+      write_history_js(opts.history, query, opts.history_size)
+    },
   )
 }
 

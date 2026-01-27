@@ -299,8 +299,8 @@ fn print_help() -> Unit {
     "    --print0                 Use NUL separator for output\n" +
     "    -f, --filter <QUERY>     Filter mode (non-interactive)\n" +
     "    --print-query            Print query as first line of output\n" +
-    "    --history <FILE>         History file path [native]\n" +
-    "    --history-size <N>       Maximum history size (default: 1000) [native]\n" +
+    "    --history <FILE>         History file path\n" +
+    "    --history-size <N>       Maximum history size (default: 1000)\n" +
     "\n" +
     "  Other:\n" +
     "    -h, --help               Show this help message\n" +
@@ -315,9 +315,6 @@ fn print_help() -> Unit {
     "    Ctrl-p       History prev (with --history) / Move up\n" +
     "    Ctrl-n       History next (with --history) / Move down\n" +
     "    Ctrl-u       Clear query\n" +
-    "\n" +
-    "NOTE:\n" +
-    "    Options marked [native] require native build (not JS target).\n" +
     "\n" +
     "EXAMPLES:\n" +
     "    find . -type f | mzf\n" +
