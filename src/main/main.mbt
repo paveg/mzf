@@ -16,17 +16,30 @@ fn get_demo_items() -> Array[@core.Item] {
 }
 
 ///|
-/// Run the main application with optional initial query
+/// Run the main application with options
 fn run_app(
   items : Array[@core.Item],
   width : Int,
   height : Int,
   initial_query? : String = "",
+  reverse? : Bool = false,
+  prompt? : String = "> ",
+  pointer? : String = "> ",
+  marker? : String = "*",
 ) -> Unit {
   if items.length() == 0 {
     return
   }
-  let app = @ui.App::new(items, width, height, initial_query~)
+  let app = @ui.App::new(
+    items,
+    width,
+    height,
+    initial_query~,
+    reverse~,
+    prompt~,
+    pointer~,
+    marker~,
+  )
 
   // Enter alternate screen and enable raw mode
   @io.print_raw("\u001b[?1049h") // Enter alternate screen

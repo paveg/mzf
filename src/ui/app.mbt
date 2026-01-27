@@ -11,6 +11,11 @@ pub struct App {
   mut result : String?
   // Multi-select: stores original_index of marked items
   mut marked : Array[Int]
+  // Display options
+  reverse : Bool // Display from top to bottom
+  prompt : String // Input prompt string
+  pointer : String // Pointer/cursor string
+  marker : String // Marker string for multi-select
 }
 
 ///|
@@ -19,6 +24,10 @@ pub fn App::new(
   width : Int,
   height : Int,
   initial_query? : String = "",
+  reverse? : Bool = false,
+  prompt? : String = "> ",
+  pointer? : String = "> ",
+  marker? : String = "*",
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -30,6 +39,10 @@ pub fn App::new(
     height,
     result: None,
     marked: [],
+    reverse,
+    prompt,
+    pointer,
+    marker,
   }
   // Apply initial filter
   app.update_filter()
@@ -221,6 +234,56 @@ pub fn App::handle_key(self : App, event : @events.InputEvent) -> Unit {
 }
 
 ///|
+/// Render a single item line
+fn App::render_item(self : App, buf : StringBuilder, idx : Int) -> Unit {
+  let result = self.filtered[idx]
+  let is_cursor = idx == self.selected_idx
+  let is_marked = self.is_marked(result.item.original_index)
+
+  // Marker column
+  if is_marked {
+    buf.write_string(ansi_green)
+    buf.write_string(self.marker)
+    buf.write_string(ansi_reset)
+  } else {
+    // Pad with spaces to match marker width
+    for k = 0; k < string_width(self.marker); k = k + 1 {
+      ignore(k)
+      buf.write_string(" ")
+    }
+  }
+
+  // Selection indicator
+  if is_cursor {
+    buf.write_string(ansi_reverse)
+    buf.write_string(ansi_cyan)
+    buf.write_string(self.pointer)
+  } else {
+    // Pad with spaces to match pointer width
+    for k = 0; k < string_width(self.pointer); k = k + 1 {
+      ignore(k)
+      buf.write_string(" ")
+    }
+  }
+
+  // For cursor items, don't highlight matches (reverse video is enough)
+  // For non-cursor items, highlight matching characters
+  if is_cursor {
+    buf.write_string(result.item.text)
+    buf.write_string(ansi_reset)
+  } else {
+    buf.write_string(highlight_match_result(result))
+  }
+  buf.write_string("\r\n")
+}
+
+///|
+/// Get display width of a string (simple: 1 per char)
+fn string_width(s : String) -> Int {
+  s.iter().count()
+}
+
+///|
 /// Render the UI
 pub fn App::render(self : App) -> String {
   let buf = StringBuilder::new()
@@ -230,89 +293,111 @@ pub fn App::render(self : App) -> String {
   buf.write_string("\u001b[?25l") // Hide cursor
   buf.write_string("\u001b[H") // Move to home
   buf.write_string("\u001b[J") // Clear from cursor to end
-
-  // Render prompt line
-  buf.write_string(ansi_yellow)
-  buf.write_string("> ")
-  buf.write_string(ansi_reset)
-  buf.write_string(self.query)
-  buf.write_string("_\r\n")
-
-  // Separator
-  buf.write_string(ansi_dim)
-  for i = 0; i < self.width - 1; i = i + 1 {
-    ignore(i)
-    buf.write_string("─")
-  }
-  buf.write_string(ansi_reset)
-  buf.write_string("\r\n")
-
-  // Render items
   let visible_count = if self.filtered.length() > max_visible {
     max_visible
   } else {
     self.filtered.length()
   }
-  for i = 0; i < visible_count; i = i + 1 {
-    let result = self.filtered[i]
-    let is_cursor = i == self.selected_idx
-    let is_marked = self.is_marked(result.item.original_index)
-
-    // Marker column
-    if is_marked {
-      buf.write_string(ansi_green)
-      buf.write_string("*")
-      buf.write_string(ansi_reset)
-    } else {
-      buf.write_string(" ")
+  if self.reverse {
+    // Reverse mode: status at top, items bottom-to-top, prompt at bottom
+    // Status line
+    buf.write_string(ansi_dim)
+    if self.marked.length() > 0 {
+      buf.write_string(self.marked.length().to_string())
+      buf.write_string("/")
     }
-
-    // Selection indicator
-    if is_cursor {
-      buf.write_string(ansi_reverse)
-      buf.write_string(ansi_cyan)
-      buf.write_string("> ")
-    } else {
-      buf.write_string("  ")
-    }
-
-    // For cursor items, don't highlight matches (reverse video is enough)
-    // For non-cursor items, highlight matching characters
-    if is_cursor {
-      buf.write_string(result.item.text)
-      buf.write_string(ansi_reset)
-    } else {
-      buf.write_string(highlight_match_result(result))
-    }
-    buf.write_string("\r\n")
-  }
-
-  // Fill remaining lines
-  for j = visible_count; j < max_visible; j = j + 1 {
-    ignore(j)
-    buf.write_string("\r\n")
-  }
-
-  // Status line
-  buf.write_string(ansi_dim)
-  if self.marked.length() > 0 {
-    buf.write_string(self.marked.length().to_string())
+    buf.write_string(self.filtered.length().to_string())
     buf.write_string("/")
-  }
-  buf.write_string(self.filtered.length().to_string())
-  buf.write_string("/")
-  buf.write_string(self.items.length().to_string())
-  buf.write_string(ansi_reset)
+    buf.write_string(self.items.length().to_string())
+    buf.write_string(ansi_reset)
+    buf.write_string("\r\n")
 
-  // Show cursor at query position
-  let cursor_row = 1
-  let cursor_col = 3 + self.query.length()
-  buf.write_string("\u001b[")
-  buf.write_string(cursor_row.to_string())
-  buf.write_string(";")
-  buf.write_string(cursor_col.to_string())
-  buf.write_string("H")
-  buf.write_string("\u001b[?25h") // Show cursor
+    // Fill empty lines first
+    for j = visible_count; j < max_visible; j = j + 1 {
+      ignore(j)
+      buf.write_string("\r\n")
+    }
+
+    // Render items in reverse order (last item first)
+    for i = visible_count - 1; i >= 0; i = i - 1 {
+      self.render_item(buf, i)
+    }
+
+    // Separator
+    buf.write_string(ansi_dim)
+    for i = 0; i < self.width - 1; i = i + 1 {
+      ignore(i)
+      buf.write_string("─")
+    }
+    buf.write_string(ansi_reset)
+    buf.write_string("\r\n")
+
+    // Render prompt line at bottom
+    buf.write_string(ansi_yellow)
+    buf.write_string(self.prompt)
+    buf.write_string(ansi_reset)
+    buf.write_string(self.query)
+    buf.write_string("_")
+
+    // Show cursor at query position (bottom line in reverse mode)
+    let cursor_row = self.height
+    let cursor_col = string_width(self.prompt) + 1 + self.query.length()
+    buf.write_string("\u001b[")
+    buf.write_string(cursor_row.to_string())
+    buf.write_string(";")
+    buf.write_string(cursor_col.to_string())
+    buf.write_string("H")
+    buf.write_string("\u001b[?25h") // Show cursor
+  } else {
+    // Normal mode: prompt at top, items top-to-bottom, status at bottom
+    // Render prompt line
+    buf.write_string(ansi_yellow)
+    buf.write_string(self.prompt)
+    buf.write_string(ansi_reset)
+    buf.write_string(self.query)
+    buf.write_string("_\r\n")
+
+    // Separator
+    buf.write_string(ansi_dim)
+    for i = 0; i < self.width - 1; i = i + 1 {
+      ignore(i)
+      buf.write_string("─")
+    }
+    buf.write_string(ansi_reset)
+    buf.write_string("\r\n")
+
+    // Render items
+    for i = 0; i < visible_count; i = i + 1 {
+      self.render_item(buf, i)
+    }
+
+    // Fill remaining lines
+    for j = visible_count; j < max_visible; j = j + 1 {
+      ignore(j)
+      buf.write_string("\r\n")
+    }
+
+    // Status line
+    buf.write_string(ansi_dim)
+    if self.marked.length() > 0 {
+      buf.write_string(self.marked.length().to_string())
+      buf.write_string("/")
+    }
+    buf.write_string(self.filtered.length().to_string())
+    buf.write_string("/")
+    buf.write_string(self.items.length().to_string())
+    buf.write_string(ansi_reset)
+
+    // Show cursor at query position
+    let cursor_row = 1
+    let cursor_col = string_width(self.prompt) + 1 + self.query.length()
+    buf.write_string("\u001b[")
+    buf.write_string(cursor_row.to_string())
+    buf.write_string(";")
+    buf.write_string(cursor_col.to_string())
+    buf.write_string("H")
+    buf.write_string("\u001b[?25h") // Show cursor
+  }
   buf.to_string()
 }
 

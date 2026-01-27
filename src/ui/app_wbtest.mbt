@@ -217,10 +217,7 @@ test "multiselect: toggle_mark moves selection down" {
 
 ///|
 test "multiselect: toggle_mark removes item if already marked" {
-  let items = [
-    @core.Item::new("a.txt", 0),
-    @core.Item::new("b.txt", 1),
-  ]
+  let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
   let app = App::new(items, 80, 24)
   app.toggle_mark() // Add
   assert_eq(app.marked.length(), 1)
@@ -287,10 +284,7 @@ test "multiselect: confirm returns all marked items" {
 
 ///|
 test "multiselect: confirm with no marks returns current item" {
-  let items = [
-    @core.Item::new("a.txt", 0),
-    @core.Item::new("b.txt", 1),
-  ]
+  let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
   let app = App::new(items, 80, 24)
   app.select_down() // Select b.txt
   app.confirm_selection()
@@ -336,4 +330,74 @@ test "multiselect: status line shows marked count" {
   let output = app.render()
   // Status line should show "2/3/3" (2 marked, 3 filtered, 3 total)
   assert_true(output.contains("2/"))
+}
+
+// =============================================================================
+// Display Options Tests
+// =============================================================================
+
+///|
+test "options: default values" {
+  let items = [@core.Item::new("test.txt", 0)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.reverse, false)
+  assert_eq(app.prompt, "> ")
+  assert_eq(app.pointer, "> ")
+  assert_eq(app.marker, "*")
+}
+
+///|
+test "options: custom prompt" {
+  let items = [@core.Item::new("test.txt", 0)]
+  let app = App::new(items, 80, 24, prompt=">>> ")
+  assert_eq(app.prompt, ">>> ")
+  let output = app.render()
+  assert_true(output.contains(">>> "))
+}
+
+///|
+test "options: custom pointer" {
+  let items = [@core.Item::new("test.txt", 0)]
+  let app = App::new(items, 80, 24, pointer="▶ ")
+  assert_eq(app.pointer, "▶ ")
+  let output = app.render()
+  assert_true(output.contains("▶ "))
+}
+
+///|
+test "options: custom marker" {
+  let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
+  let app = App::new(items, 80, 24, marker="✓")
+  assert_eq(app.marker, "✓")
+  app.toggle_mark()
+  let output = app.render()
+  assert_true(output.contains("✓"))
+}
+
+///|
+test "options: reverse mode enabled" {
+  let items = [@core.Item::new("test.txt", 0)]
+  let app = App::new(items, 80, 24, reverse=true)
+  assert_eq(app.reverse, true)
+  // In reverse mode, render should still return a valid string
+  let output = app.render()
+  assert_true(output.length() > 0)
+}
+
+///|
+test "options: combined options" {
+  let items = [@core.Item::new("test.txt", 0)]
+  let app = App::new(
+    items,
+    80,
+    24,
+    reverse=true,
+    prompt="? ",
+    pointer="→ ",
+    marker="●",
+  )
+  assert_eq(app.reverse, true)
+  assert_eq(app.prompt, "? ")
+  assert_eq(app.pointer, "→ ")
+  assert_eq(app.marker, "●")
 }
