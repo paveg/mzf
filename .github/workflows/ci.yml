@@ -71,7 +71,7 @@ jobs:
       - name: Build native target
         run: |
           moon build --target native || true
-          cc -c -o _build/tui_native.o .mooncakes/mizchi/tui/io/tui_native.c
+          cc -c -o _build/tui_native.o native/tui_native.c
           cc -o _build/native/release/build/main/main.exe \
             -I$HOME/.moon/include -fwrapv -fno-strict-aliasing -O2 \
             $HOME/.moon/lib/libmoonbitrun.o \
