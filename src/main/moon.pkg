@@ -10,8 +10,5 @@ import {
 
 options(
   "is-main": true,
-  targets: {
-    "main_native.mbt": ["native"],
-    "main_js.mbt": ["js"],
-  },
+  targets: { "main_js.mbt": [ "js" ], "main_native.mbt": [ "native" ] },
 )

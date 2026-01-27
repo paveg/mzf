@@ -2,16 +2,22 @@
 /// Scoring constants (based on fzf/skim)
 let score_match : Int = 16
 
+///|
 let bonus_consecutive : Int = 16
 
+///|
 let bonus_boundary : Int = 8
 
+///|
 let bonus_camel_case : Int = 8
 
+///|
 let bonus_first_char : Int = 8
 
+///|
 let penalty_gap_start : Int = 3
 
+///|
 let penalty_gap_extension : Int = 1
 
 ///|
@@ -43,7 +49,11 @@ fn to_lower_char(c : Char) -> Char {
 
 ///|
 /// Check if two chars match (considering case sensitivity)
-fn chars_match(pattern_char : Char, text_char : Char, case_sensitive : Bool) -> Bool {
+fn chars_match(
+  pattern_char : Char,
+  text_char : Char,
+  case_sensitive : Bool,
+) -> Bool {
   if case_sensitive {
     pattern_char == text_char
   } else {
@@ -70,7 +80,11 @@ pub fn fuzzy_match(pattern : String, text : String) -> (Int, Array[Int])? {
   let mut pattern_idx = 0
   for text_idx = 0; text_idx < text_chars.length(); text_idx = text_idx + 1 {
     if pattern_idx < pattern_chars.length() &&
-       chars_match(pattern_chars[pattern_idx], text_chars[text_idx], case_sensitive) {
+      chars_match(
+        pattern_chars[pattern_idx],
+        text_chars[text_idx],
+        case_sensitive,
+      ) {
       positions.push(text_idx)
       pattern_idx = pattern_idx + 1
     }
@@ -92,10 +106,8 @@ fn calculate_score(text_chars : Array[Char], positions : Array[Int]) -> Int {
   if positions.length() == 0 {
     return 0
   }
-
   let mut score = 0
-  let mut prev_pos = -2  // -2 to ensure first char doesn't get consecutive bonus incorrectly
-
+  let mut prev_pos = -2 // -2 to ensure first char doesn't get consecutive bonus incorrectly
   for i = 0; i < positions.length(); i = i + 1 {
     let pos = positions[i]
 
@@ -127,28 +139,30 @@ fn calculate_score(text_chars : Array[Char], positions : Array[Int]) -> Int {
       }
 
       // CamelCase boundary (lowercase followed by uppercase)
-      if prev_char >= 'a' && prev_char <= 'z' && curr_char >= 'A' && curr_char <= 'Z' {
+      if prev_char >= 'a' &&
+        prev_char <= 'z' &&
+        curr_char >= 'A' &&
+        curr_char <= 'Z' {
         score = score + bonus_camel_case
       }
     }
-
     prev_pos = pos
   }
-
   score
 }
 
 ///|
 /// Filter and score items based on pattern
-pub fn filter_and_score(pattern : String, items : Array[Item]) -> Array[MatchResult] {
+pub fn filter_and_score(
+  pattern : String,
+  items : Array[Item],
+) -> Array[MatchResult] {
   let results : Array[MatchResult] = []
-
   for i = 0; i < items.length(); i = i + 1 {
     let item = items[i]
     match fuzzy_match(pattern, item.text) {
-      Some((score, positions)) => {
+      Some((score, positions)) =>
         results.push(MatchResult::new(item, score, positions))
-      }
       None => ()
     }
   }

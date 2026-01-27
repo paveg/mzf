@@ -4,10 +4,7 @@
 
 ///|
 test "app: new with default empty query" {
-  let items = [
-    @core.Item::new("foo.txt", 0),
-    @core.Item::new("bar.txt", 1),
-  ]
+  let items = [@core.Item::new("foo.txt", 0), @core.Item::new("bar.txt", 1)]
   let app = App::new(items, 80, 24)
   assert_eq(app.query, "")
   assert_eq(app.filtered.length(), 2)
@@ -42,10 +39,7 @@ test "app: initial query filters results" {
 
 ///|
 test "app: initial query no match" {
-  let items = [
-    @core.Item::new("foo.txt", 0),
-    @core.Item::new("bar.txt", 1),
-  ]
+  let items = [@core.Item::new("foo.txt", 0), @core.Item::new("bar.txt", 1)]
   let app = App::new(items, 80, 24, initial_query="xyz")
   assert_eq(app.filtered.length(), 0)
   assert_eq(app.selected_idx, 0)
@@ -96,22 +90,16 @@ test "app: select up and down" {
   ]
   let app = App::new(items, 80, 24)
   assert_eq(app.selected_idx, 0)
-
   app.select_down()
   assert_eq(app.selected_idx, 1)
-
   app.select_down()
   assert_eq(app.selected_idx, 2)
-
   app.select_down()
   assert_eq(app.selected_idx, 2)
-
   app.select_up()
   assert_eq(app.selected_idx, 1)
-
   app.select_up()
   assert_eq(app.selected_idx, 0)
-
   app.select_up()
   assert_eq(app.selected_idx, 0)
 }
@@ -125,7 +113,6 @@ test "app: confirm selection sets result" {
   let app = App::new(items, 80, 24)
   app.select_down()
   app.confirm_selection()
-
   assert_eq(app.is_running(), false)
   assert_eq(app.get_result(), Some("second.txt"))
 }
@@ -135,7 +122,6 @@ test "app: cancel sets no result" {
   let items = [@core.Item::new("test.txt", 0)]
   let app = App::new(items, 80, 24)
   app.cancel()
-
   assert_eq(app.is_running(), false)
   assert_eq(app.get_result(), None)
 }
@@ -145,7 +131,6 @@ test "app: confirm with empty filtered" {
   let items = [@core.Item::new("test.txt", 0)]
   let app = App::new(items, 80, 24, initial_query="xyz")
   app.confirm_selection()
-
   assert_eq(app.is_running(), false)
   assert_eq(app.get_result(), None)
 }
@@ -175,7 +160,6 @@ test "app: update filter with empty query shows all" {
   ]
   let app = App::new(items, 80, 24, initial_query="a")
   assert_eq(app.filtered.length(), 1)
-
   app.query = ""
   app.update_filter()
   assert_eq(app.filtered.length(), 3)
@@ -190,7 +174,6 @@ test "app: selected_idx resets when filter changes" {
   ]
   let app = App::new(items, 80, 24)
   app.selected_idx = 2
-
   app.handle_char('a') // Now only "aaa.txt" matches
   assert_eq(app.selected_idx, 0)
 }

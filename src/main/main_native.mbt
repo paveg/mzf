@@ -11,7 +11,6 @@ async fn read_stdin_lines() -> Array[@core.Item] {
   let mut start = 0
   let chars : Array[Char] = content.iter().collect()
   let len = chars.length()
-
   for i = 0; i < len; i = i + 1 {
     if chars[i] == '\n' {
       if i > start {
@@ -44,7 +43,6 @@ async fn read_stdin_lines() -> Array[@core.Item] {
       items.push(@core.Item::new(line, idx))
     }
   }
-
   items
 }
 
@@ -58,12 +56,10 @@ fn stdin_is_tty() -> Bool {
 async fn async_main() -> Unit {
   // Parse CLI options
   let opts = parse_args()
-
   if opts.show_help {
     print_help()
     return
   }
-
   if opts.show_version {
     print_version()
     return
@@ -80,7 +76,6 @@ async fn async_main() -> Unit {
     // Read from stdin pipe
     read_stdin_lines()
   }
-
   run_app(items, width, height, initial_query=opts.query)
 }
 

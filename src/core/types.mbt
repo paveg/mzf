@@ -22,7 +22,7 @@ pub fn Item::new(text : String, original_index : Int) -> Item {
 pub fn MatchResult::new(
   item : Item,
   score : Int,
-  match_positions : Array[Int]
+  match_positions : Array[Int],
 ) -> MatchResult {
   { item, score, match_positions }
 }

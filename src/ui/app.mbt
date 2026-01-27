@@ -16,7 +16,7 @@ pub fn App::new(
   items : Array[@core.Item],
   width : Int,
   height : Int,
-  initial_query~ : String = ""
+  initial_query? : String = "",
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -128,8 +128,7 @@ pub fn App::handle_key(self : App, event : @events.InputEvent) -> Unit {
           self.cancel()
         @events.KeyEvent::Special(@events.SpecialKey::Enter, _) =>
           self.confirm_selection()
-        @events.KeyEvent::Special(@events.SpecialKey::Up, _) =>
-          self.select_up()
+        @events.KeyEvent::Special(@events.SpecialKey::Up, _) => self.select_up()
         @events.KeyEvent::Special(@events.SpecialKey::Down, _) =>
           self.select_down()
         @events.KeyEvent::Special(@events.SpecialKey::Backspace, _) =>
@@ -186,11 +185,9 @@ pub fn App::render(self : App) -> String {
   } else {
     self.filtered.length()
   }
-
   for i = 0; i < visible_count; i = i + 1 {
     let result = self.filtered[i]
     let is_selected = i == self.selected_idx
-
     if is_selected {
       buf.write_string(ansi_reverse)
       buf.write_string(ansi_cyan)
@@ -201,7 +198,6 @@ pub fn App::render(self : App) -> String {
 
     // Highlight matching characters
     buf.write_string(highlight_match_result(result))
-
     if is_selected {
       buf.write_string(ansi_reset)
     }
@@ -230,7 +226,6 @@ pub fn App::render(self : App) -> String {
   buf.write_string(cursor_col.to_string())
   buf.write_string("H")
   buf.write_string("\u001b[?25h") // Show cursor
-
   buf.to_string()
 }
 

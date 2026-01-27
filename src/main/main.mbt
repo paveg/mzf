@@ -21,12 +21,11 @@ fn run_app(
   items : Array[@core.Item],
   width : Int,
   height : Int,
-  initial_query~ : String = ""
+  initial_query? : String = "",
 ) -> Unit {
   if items.length() == 0 {
     return
   }
-
   let app = @ui.App::new(items, width, height, initial_query~)
 
   // Enter alternate screen and enable raw mode
@@ -41,10 +40,8 @@ fn run_app(
     if key.length() == 0 || not(app.is_running()) {
       return
     }
-
     let event = @events.parse_input(key)
     app.handle_key(event)
-
     if app.is_running() {
       @io.print_raw(app.render())
     } else {

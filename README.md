@@ -1,0 +1,77 @@
+# mzf
+
+A lightweight fuzzy finder written in MoonBit.
+
+## Features
+
+- Fast fuzzy matching with smart case sensitivity
+- Scoring algorithm based on fzf/skim
+- TUI interface with keyboard navigation
+- Stdin pipe support (native build)
+- Lightweight: ~400KB native binary, ~110KB JS
+
+## Installation
+
+### Homebrew (macOS/Linux)
+
+```bash
+brew tap paveg/tap
+brew install mzf
+```
+
+### npm
+
+```bash
+npm install -g @paveg/mzf
+```
+
+### From Source
+
+Requires [MoonBit](https://www.moonbitlang.com/) toolchain.
+
+```bash
+git clone https://github.com/paveg/mzf.git
+cd mzf
+moon install
+make native
+```
+
+## Usage
+
+```bash
+# Pipe input to mzf
+find . -type f | mzf
+
+# With initial query
+ls | mzf -q "test"
+
+# Show help
+mzf --help
+```
+
+## Key Bindings
+
+| Key | Action |
+|-----|--------|
+| `Enter` | Select current item |
+| `Esc` / `Ctrl+C` | Cancel |
+| `Up` / `Ctrl+P` | Move selection up |
+| `Down` / `Ctrl+N` | Move selection down |
+| `Backspace` | Delete character |
+
+## Building
+
+```bash
+# Build native binary
+make native
+
+# Build JS target
+make js
+
+# Run tests
+make test
+```
+
+## License
+
+MIT

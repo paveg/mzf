@@ -157,9 +157,7 @@ test "scoring: consecutive chars score higher" {
   let consecutive = fuzzy_match("abc", "abc")
   let scattered = fuzzy_match("abc", "aXbXc")
   match (consecutive, scattered) {
-    (Some((score1, _)), Some((score2, _))) => {
-      assert_true(score1 > score2)
-    }
+    (Some((score1, _)), Some((score2, _))) => assert_true(score1 > score2)
     _ => panic()
   }
 }
@@ -170,9 +168,7 @@ test "scoring: boundary match after slash" {
   let boundary = fuzzy_match("f", "path/file")
   let middle = fuzzy_match("f", "buffer")
   match (boundary, middle) {
-    (Some((score1, _)), Some((score2, _))) => {
-      assert_true(score1 > score2)
-    }
+    (Some((score1, _)), Some((score2, _))) => assert_true(score1 > score2)
     _ => panic()
   }
 }
@@ -198,9 +194,7 @@ test "scoring: boundary match after hyphen" {
   let boundary = fuzzy_match("b", "foo-bar")
   let middle = fuzzy_match("b", "foobar")
   match (boundary, middle) {
-    (Some((score1, _)), Some((score2, _))) => {
-      assert_true(score1 > score2)
-    }
+    (Some((score1, _)), Some((score2, _))) => assert_true(score1 > score2)
     _ => panic()
   }
 }
@@ -238,9 +232,7 @@ test "scoring: first char bonus" {
   let first = fuzzy_match("a", "abc")
   let second = fuzzy_match("b", "abc")
   match (first, second) {
-    (Some((score1, _)), Some((score2, _))) => {
-      assert_true(score1 > score2)
-    }
+    (Some((score1, _)), Some((score2, _))) => assert_true(score1 > score2)
     _ => panic()
   }
 }
@@ -267,9 +259,7 @@ test "scoring: multiple consecutive sequences" {
   let full_consecutive = fuzzy_match("foobar", "foobar")
   let partial = fuzzy_match("foobar", "fooXbar")
   match (full_consecutive, partial) {
-    (Some((score1, _)), Some((score2, _))) => {
-      assert_true(score1 > score2)
-    }
+    (Some((score1, _)), Some((score2, _))) => assert_true(score1 > score2)
     _ => panic()
   }
 }
@@ -289,10 +279,9 @@ test "path: prefers filename boundary" {
   // Should prefer 'main' at path boundary
   let result = fuzzy_match("main", "src/main.mbt")
   match result {
-    Some((_, positions)) => {
+    Some((_, positions)) =>
       // First match should be at position 4 (after /)
       assert_eq(positions[0], 4)
-    }
     None => panic()
   }
 }
@@ -365,10 +354,9 @@ test "edge: repeated characters in text" {
   let result = fuzzy_match("a", "aaaa")
   assert_true(result is Some(_))
   match result {
-    Some((_, positions)) => {
+    Some((_, positions)) =>
       // Should match first 'a'
       assert_eq(positions[0], 0)
-    }
     None => panic()
   }
 }
@@ -536,7 +524,6 @@ test "realworld: typing directory path" {
     Item::new("src/ui/app.mbt", 1),
     Item::new("test/core_test.mbt", 2),
   ]
-
   let results = filter_and_score("src/core", items)
   assert_eq(results.length(), 1)
   assert_eq(results[0].item.text, "src/core/types.mbt")
@@ -564,7 +551,6 @@ test "realworld: config file search" {
     Item::new("tsconfig.json", 2),
     Item::new("src/config.mbt", 3),
   ]
-
   let results = filter_and_score("json", items)
   assert_eq(results.length(), 3)
 }
@@ -576,7 +562,6 @@ test "realworld: test file patterns" {
     Item::new("src/matcher_test.mbt", 1),
     Item::new("test/integration_test.mbt", 2),
   ]
-
   let results = filter_and_score("test", items)
   assert_eq(results.length(), 2)
 }
@@ -632,9 +617,7 @@ test "positions: greedy earliest match" {
   // When multiple positions possible, should match earliest
   let result = fuzzy_match("a", "xaxa")
   match result {
-    Some((_, positions)) => {
-      assert_eq(positions[0], 1) // First 'a'
-    }
+    Some((_, positions)) => assert_eq(positions[0], 1) // First 'a'
     None => panic()
   }
 }
@@ -647,10 +630,9 @@ test "positions: greedy earliest match" {
 test "score: base score is pattern length" {
   let result = fuzzy_match("abc", "xxxabcxxx")
   match result {
-    Some((score, _)) => {
+    Some((score, _)) =>
       // Base score should be at least pattern length
       assert_true(score >= 3)
-    }
     None => panic()
   }
 }
@@ -675,10 +657,9 @@ test "score: boundary bonus at start" {
   let at_start = fuzzy_match("a", "abc")
   let in_middle = fuzzy_match("b", "abc")
   match (at_start, in_middle) {
-    (Some((score1, _)), Some((score2, _))) => {
+    (Some((score1, _)), Some((score2, _))) =>
       // First character gets bonus
       assert_true(score1 > score2)
-    }
     _ => panic()
   }
 }

@@ -1,9 +1,9 @@
 ///|
 /// CLI options
 struct CliOptions {
-  query : String        // Initial query (-q, --query)
-  show_help : Bool      // Show help (-h, --help)
-  show_version : Bool   // Show version (-v, --version)
+  query : String // Initial query (-q, --query)
+  show_help : Bool // Show help (-h, --help)
+  show_version : Bool // Show version (-v, --version)
 }
 
 ///|
@@ -14,7 +14,6 @@ fn parse_args() -> CliOptions {
   let mut show_help = false
   let mut show_version = false
   let mut i = 1 // Skip program name
-
   while i < args.length() {
     let arg = args[i]
     if arg == "-h" || arg == "--help" {
@@ -44,15 +43,13 @@ fn parse_args() -> CliOptions {
     }
     i = i + 1
   }
-
   { query, show_help, show_version }
 }
 
 ///|
 /// Print help message
 fn print_help() -> Unit {
-  let help =
-    "mzf - MoonBit Fuzzy Finder\n" +
+  let help = "mzf - MoonBit Fuzzy Finder\n" +
     "\n" +
     "USAGE:\n" +
     "    command | mzf [OPTIONS]\n" +
