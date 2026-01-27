@@ -9,6 +9,8 @@ pub struct App {
   width : Int
   height : Int
   mut result : String?
+  // Multi-select: stores original_index of marked items
+  mut marked : Array[Int]
 }
 
 ///|
@@ -27,6 +29,7 @@ pub fn App::new(
     width,
     height,
     result: None,
+    marked: [],
   }
   // Apply initial filter
   app.update_filter()
@@ -71,9 +74,72 @@ fn App::select_down(self : App) -> Unit {
 }
 
 ///|
+/// Toggle mark on current item
+fn App::toggle_mark(self : App) -> Unit {
+  if self.filtered.length() == 0 {
+    return
+  }
+  let current = self.filtered[self.selected_idx]
+  let idx = current.item.original_index
+  // Check if already marked
+  let mut found = -1
+  for i = 0; i < self.marked.length(); i = i + 1 {
+    if self.marked[i] == idx {
+      found = i
+      break
+    }
+  }
+  if found >= 0 {
+    // Remove from marked
+    let new_marked : Array[Int] = []
+    for i = 0; i < self.marked.length(); i = i + 1 {
+      if i != found {
+        new_marked.push(self.marked[i])
+      }
+    }
+    self.marked = new_marked
+  } else {
+    // Add to marked
+    self.marked.push(idx)
+  }
+  // Move down after toggle (like fzf)
+  self.select_down()
+}
+
+///|
+/// Check if an item is marked by original_index
+fn App::is_marked(self : App, original_index : Int) -> Bool {
+  for i = 0; i < self.marked.length(); i = i + 1 {
+    if self.marked[i] == original_index {
+      return true
+    }
+  }
+  false
+}
+
+///|
 /// Confirm selection
 fn App::confirm_selection(self : App) -> Unit {
-  if self.filtered.length() > 0 && self.selected_idx < self.filtered.length() {
+  if self.marked.length() > 0 {
+    // Return all marked items
+    let buf = StringBuilder::new()
+    for i = 0; i < self.marked.length(); i = i + 1 {
+      let idx = self.marked[i]
+      // Find item by original_index
+      for j = 0; j < self.items.length(); j = j + 1 {
+        if self.items[j].original_index == idx {
+          if i > 0 {
+            buf.write_string("\n")
+          }
+          buf.write_string(self.items[j].text)
+          break
+        }
+      }
+    }
+    self.result = Some(buf.to_string())
+  } else if self.filtered.length() > 0 &&
+    self.selected_idx < self.filtered.length() {
+    // Return current item
     self.result = Some(self.filtered[self.selected_idx].item.text)
   }
   self.running = false
@@ -131,6 +197,8 @@ pub fn App::handle_key(self : App, event : @events.InputEvent) -> Unit {
         @events.KeyEvent::Special(@events.SpecialKey::Up, _) => self.select_up()
         @events.KeyEvent::Special(@events.SpecialKey::Down, _) =>
           self.select_down()
+        @events.KeyEvent::Special(@events.SpecialKey::Tab, _) =>
+          self.toggle_mark()
         @events.KeyEvent::Special(@events.SpecialKey::Backspace, _) =>
           self.handle_backspace()
         @events.KeyEvent::Char(c, @events.KeyModifier::Ctrl) =>
@@ -187,8 +255,20 @@ pub fn App::render(self : App) -> String {
   }
   for i = 0; i < visible_count; i = i + 1 {
     let result = self.filtered[i]
-    let is_selected = i == self.selected_idx
-    if is_selected {
+    let is_cursor = i == self.selected_idx
+    let is_marked = self.is_marked(result.item.original_index)
+
+    // Marker column
+    if is_marked {
+      buf.write_string(ansi_green)
+      buf.write_string("*")
+      buf.write_string(ansi_reset)
+    } else {
+      buf.write_string(" ")
+    }
+
+    // Selection indicator
+    if is_cursor {
       buf.write_string(ansi_reverse)
       buf.write_string(ansi_cyan)
       buf.write_string("> ")
@@ -196,9 +276,9 @@ pub fn App::render(self : App) -> String {
       buf.write_string("  ")
     }
 
-    // For selected items, don't highlight matches (reverse video is enough)
-    // For non-selected items, highlight matching characters
-    if is_selected {
+    // For cursor items, don't highlight matches (reverse video is enough)
+    // For non-cursor items, highlight matching characters
+    if is_cursor {
       buf.write_string(result.item.text)
       buf.write_string(ansi_reset)
     } else {
@@ -215,6 +295,10 @@ pub fn App::render(self : App) -> String {
 
   // Status line
   buf.write_string(ansi_dim)
+  if self.marked.length() > 0 {
+    buf.write_string(self.marked.length().to_string())
+    buf.write_string("/")
+  }
   buf.write_string(self.filtered.length().to_string())
   buf.write_string("/")
   buf.write_string(self.items.length().to_string())

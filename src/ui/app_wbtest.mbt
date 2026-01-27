@@ -177,3 +177,163 @@ test "app: selected_idx resets when filter changes" {
   app.handle_char('a') // Now only "aaa.txt" matches
   assert_eq(app.selected_idx, 0)
 }
+
+// =============================================================================
+// Multi-select Tests
+// =============================================================================
+
+///|
+test "multiselect: initial marked array is empty" {
+  let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.marked.length(), 0)
+}
+
+///|
+test "multiselect: toggle_mark adds item to marked" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+    @core.Item::new("c.txt", 2),
+  ]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark()
+  assert_eq(app.marked.length(), 1)
+  assert_eq(app.marked[0], 0) // original_index of first item
+}
+
+///|
+test "multiselect: toggle_mark moves selection down" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+    @core.Item::new("c.txt", 2),
+  ]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.selected_idx, 0)
+  app.toggle_mark()
+  assert_eq(app.selected_idx, 1)
+}
+
+///|
+test "multiselect: toggle_mark removes item if already marked" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+  ]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark() // Add
+  assert_eq(app.marked.length(), 1)
+  app.selected_idx = 0 // Go back to first item
+  app.toggle_mark() // Remove
+  assert_eq(app.marked.length(), 0)
+}
+
+///|
+test "multiselect: toggle_mark on empty filtered does nothing" {
+  let items = [@core.Item::new("test.txt", 0)]
+  let app = App::new(items, 80, 24, initial_query="xyz")
+  assert_eq(app.filtered.length(), 0)
+  app.toggle_mark()
+  assert_eq(app.marked.length(), 0)
+}
+
+///|
+test "multiselect: is_marked returns true for marked item" {
+  let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark()
+  assert_eq(app.is_marked(0), true)
+  assert_eq(app.is_marked(1), false)
+}
+
+///|
+test "multiselect: mark multiple items" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+    @core.Item::new("c.txt", 2),
+  ]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark() // Mark a.txt, moves to b.txt
+  app.toggle_mark() // Mark b.txt, moves to c.txt
+  assert_eq(app.marked.length(), 2)
+  assert_eq(app.is_marked(0), true)
+  assert_eq(app.is_marked(1), true)
+  assert_eq(app.is_marked(2), false)
+}
+
+///|
+test "multiselect: confirm returns all marked items" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+    @core.Item::new("c.txt", 2),
+  ]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark() // Mark a.txt
+  app.toggle_mark() // Mark b.txt
+  app.confirm_selection()
+  let result = app.get_result()
+  match result {
+    Some(text) => {
+      assert_true(text.contains("a.txt"))
+      assert_true(text.contains("b.txt"))
+      assert_true(not(text.contains("c.txt")))
+    }
+    None => panic()
+  }
+}
+
+///|
+test "multiselect: confirm with no marks returns current item" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+  ]
+  let app = App::new(items, 80, 24)
+  app.select_down() // Select b.txt
+  app.confirm_selection()
+  assert_eq(app.get_result(), Some("b.txt"))
+}
+
+///|
+test "multiselect: marked items separated by newline" {
+  let items = [
+    @core.Item::new("first.txt", 0),
+    @core.Item::new("second.txt", 1),
+  ]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark()
+  app.toggle_mark()
+  app.confirm_selection()
+  let result = app.get_result()
+  match result {
+    Some(text) => assert_true(text.contains("\n"))
+    None => panic()
+  }
+}
+
+///|
+test "multiselect: render shows marker for marked items" {
+  let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark() // Mark first item
+  let output = app.render()
+  assert_true(output.contains("*"))
+}
+
+///|
+test "multiselect: status line shows marked count" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+    @core.Item::new("c.txt", 2),
+  ]
+  let app = App::new(items, 80, 24)
+  app.toggle_mark()
+  app.toggle_mark()
+  let output = app.render()
+  // Status line should show "2/3/3" (2 marked, 3 filtered, 3 total)
+  assert_true(output.contains("2/"))
+}
