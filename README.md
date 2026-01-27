@@ -10,21 +10,21 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 - Multi-select support (`-m, --multi`)
 - Field-based matching (`-n, --nth`, `-d, --delimiter`)
 - Exact match mode (`-e, --exact`)
-- Stdin pipe support (native build)
-- Lightweight: ~550KB native binary, ~150KB JS
+- ANSI color support (`--ansi`)
+- History support (`--history`)
+- Stdin pipe support (both native and JS builds)
+- Lightweight: ~600KB native binary, ~200KB JS
 
 ## Comparison
 
 | Tool | Language | Binary Size | Features |
 |------|----------|-------------|----------|
-| [fzf](https://github.com/junegunn/fzf) | Go | ~4.5MB | Full-featured, preview, multi-select |
-| [skim](https://github.com/lotabout/skim) | Rust | ~5MB | fzf-compatible, async |
-| [peco](https://github.com/peco/peco) | Go | ~8MB | Simple, customizable |
-| **mzf** | MoonBit | ~550KB | fzf-compatible, lightweight |
+| [fzf](https://github.com/junegunn/fzf) | Go | ~3.5MB | Full-featured, preview, multi-select |
+| [skim](https://github.com/lotabout/skim) | Rust | ~3.9MB | fzf-compatible, async |
+| [peco](https://github.com/peco/peco) | Go | ~4.7MB | Simple, customizable |
+| **mzf** | MoonBit | **~600KB** | fzf-compatible, lightweight |
 
-*Binary sizes vary by version and platform.*
-
-mzf provides fzf-compatible options while staying lightweight. For advanced features like preview window, use fzf or skim.
+*mzf is ~6x smaller than alternatives while providing fzf-compatible options.*
 
 ## Installation
 
@@ -73,6 +73,12 @@ ls | mzf --prompt='Search: ' --pointer='▶ '
 # Filter mode (non-interactive)
 find . | mzf -f src
 
+# With history support
+ls | mzf --history ~/.mzf_history
+
+# Preserve ANSI colors
+ls --color=always | mzf --ansi
+
 # Show help
 mzf --help
 ```
@@ -82,10 +88,10 @@ mzf --help
 | Key | Action |
 |-----|--------|
 | `Enter` | Select current item |
-| `Tab` | Toggle mark (multi-select) |
+| `Tab` | Toggle mark (multi-select, requires -m) |
 | `Esc` / `Ctrl+C` | Cancel |
-| `Up` / `Ctrl+P` | Move selection up |
-| `Down` / `Ctrl+N` | Move selection down |
+| `Up` / `Down` | Move selection / History navigation |
+| `Ctrl+P` / `Ctrl+N` | History prev/next (with --history) |
 | `Ctrl+U` | Clear query |
 | `Backspace` | Delete character |
 
@@ -112,6 +118,10 @@ mzf --help
 | `--marker <STR>` | Multi-select marker (default: "*") |
 | `--header <STR>` | Header string to display |
 | `--with-nth <N[,M,...]>` | Field index for display transformation |
+| `--ansi` | Enable ANSI color processing |
+| `--border <STYLE>` | Border style (none, rounded, sharp, horizontal) |
+| `--info <STYLE>` | Info line style (default, hidden, inline) |
+| `--layout <LAYOUT>` | Layout (default, reverse, reverse-list) |
 
 ### Behavior
 
@@ -123,6 +133,7 @@ mzf --help
 | `--cycle` | Enable cyclic scroll |
 | `-1, --select-1` | Auto-select if single match |
 | `-0, --exit-0` | Exit immediately if no match |
+| `--expect <KEYS>` | Expected keys to abort (comma-separated) |
 
 ### Input/Output
 
@@ -132,7 +143,8 @@ mzf --help
 | `--print0` | Use NUL separator for output |
 | `-f, --filter <QUERY>` | Filter mode (non-interactive) |
 | `--print-query` | Print query as first line of output |
-| `--expect <KEYS>` | Expected keys to abort (comma-separated) |
+| `--history <FILE>` | History file path |
+| `--history-size <N>` | Maximum history size (default: 1000) |
 
 ## Building
 
