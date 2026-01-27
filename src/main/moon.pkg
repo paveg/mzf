@@ -5,6 +5,7 @@ import {
   "mizchi/tui/events",
   "moonbitlang/async" as @mbasync,
   "moonbitlang/async/stdio" as @stdio,
+  "moonbitlang/async/fs" as @fs,
   "moonbitlang/core/env" as @env,
 }
 

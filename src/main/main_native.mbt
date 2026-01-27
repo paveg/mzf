@@ -59,6 +59,71 @@ fn stdin_is_tty() -> Bool {
 }
 
 ///|
+/// Read history file and return lines as array
+async fn read_history_file(path : String) -> Array[String] {
+  let history : Array[String] = []
+  if path.length() == 0 {
+    return history
+  }
+  // Try to read the file
+  let content = @fs.read_file(path).text() catch {
+    _ => return history // File doesn't exist or can't be read
+  }
+  // Split by newlines
+  let chars : Array[Char] = content.iter().collect()
+  let buf = StringBuilder::new()
+  for i = 0; i < chars.length(); i = i + 1 {
+    if chars[i] == '\n' {
+      let line = buf.to_string()
+      if line.length() > 0 {
+        history.push(line)
+      }
+      buf.reset()
+    } else if chars[i] != '\r' {
+      buf.write_char(chars[i])
+    }
+  }
+  // Handle last line without newline
+  let last_line = buf.to_string()
+  if last_line.length() > 0 {
+    history.push(last_line)
+  }
+  history
+}
+
+///|
+/// Write query to history file (append)
+async fn write_history(path : String, query : String) -> Unit {
+  if path.length() == 0 || query.length() == 0 {
+    return
+  }
+  // Read existing history
+  let history = read_history_file(path)
+  // Remove duplicates of the new query
+  let new_history : Array[String] = []
+  for entry in history {
+    if entry != query {
+      new_history.push(entry)
+    }
+  }
+  new_history.push(query)
+  // Write back to file (limit to 1000 entries)
+  let start = if new_history.length() > 1000 {
+    new_history.length() - 1000
+  } else {
+    0
+  }
+  let buf = StringBuilder::new()
+  for i = start; i < new_history.length(); i = i + 1 {
+    buf.write_string(new_history[i])
+    buf.write_string("\n")
+  }
+  @fs.write_file(path, buf.to_string(), create=0o644) catch {
+    _ => () // Ignore write errors
+  }
+}
+
+///|
 async fn async_main() -> Unit {
   // Parse CLI options
   let opts = parse_args()
@@ -70,6 +135,9 @@ async fn async_main() -> Unit {
     print_version()
     return
   }
+
+  // Reserve write_history for future use (history writing on exit)
+  ignore(write_history)
 
   // Get terminal size
   let (width, term_height) = @io.get_terminal_size()
@@ -87,6 +155,9 @@ async fn async_main() -> Unit {
 
   // Apply --tac if specified (reverse input order)
   let items = if opts.tac { reverse_items(raw_items) } else { raw_items }
+
+  // Load history from file if specified
+  let history = read_history_file(opts.history)
 
   // Handle --filter: non-interactive filter mode
   if opts.filter.length() > 0 {
@@ -139,6 +210,7 @@ async fn async_main() -> Unit {
     prompt=opts.prompt,
     pointer=opts.pointer,
     marker=opts.marker,
+    multi=opts.multi,
     cycle=opts.cycle,
     no_sort=opts.no_sort,
     nth=opts.nth,
@@ -150,6 +222,11 @@ async fn async_main() -> Unit {
     ignore_case=opts.ignore_case,
     header=opts.header,
     print_query=opts.print_query,
+    with_nth=opts.with_nth,
+    expect=opts.expect,
+    ansi=opts.ansi,
+    history~,
+    history_file=opts.history,
   )
 }
 

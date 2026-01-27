@@ -28,6 +28,10 @@ test "cli: default options" {
     filter: "",
     print_query: false,
     header: "",
+    with_nth: "",
+    expect: "",
+    ansi: false,
+    history: "",
   }
   assert_eq(opts.query, "")
   assert_eq(opts.show_help, false)
@@ -43,6 +47,10 @@ test "cli: default options" {
   assert_eq(opts.filter, "")
   assert_eq(opts.print_query, false)
   assert_eq(opts.header, "")
+  assert_eq(opts.with_nth, "")
+  assert_eq(opts.expect, "")
+  assert_eq(opts.ansi, false)
+  assert_eq(opts.history, "")
 }
 
 ///|
@@ -252,6 +260,10 @@ test "cli: default new options" {
     filter: "",
     print_query: false,
     header: "",
+    with_nth: "",
+    expect: "",
+    ansi: false,
+    history: "",
   }
   assert_eq(opts.multi, false)
   assert_eq(opts.no_sort, false)
@@ -268,6 +280,10 @@ test "cli: default new options" {
   assert_eq(opts.filter, "")
   assert_eq(opts.print_query, false)
   assert_eq(opts.header, "")
+  assert_eq(opts.with_nth, "")
+  assert_eq(opts.expect, "")
+  assert_eq(opts.ansi, false)
+  assert_eq(opts.history, "")
 }
 
 // =============================================================================
@@ -307,4 +323,33 @@ test "cli: print-query flag recognition" {
 test "cli: header option patterns" {
   assert_true("--header".has_prefix("--header"))
   assert_true("--header=text".has_prefix("--header="))
+}
+
+// =============================================================================
+// New Features Tests (TDD) - with-nth, expect, ansi, history
+// =============================================================================
+
+///|
+test "cli: with-nth option patterns" {
+  assert_true("--with-nth".has_prefix("--with-nth"))
+  assert_true("--with-nth=1".has_prefix("--with-nth="))
+  assert_true("--with-nth=1,2,3".has_prefix("--with-nth="))
+}
+
+///|
+test "cli: expect option patterns" {
+  assert_true("--expect".has_prefix("--expect"))
+  assert_true("--expect=ctrl-v".has_prefix("--expect="))
+  assert_true("--expect=ctrl-v,ctrl-o".has_prefix("--expect="))
+}
+
+///|
+test "cli: ansi flag recognition" {
+  assert_true("--ansi" == "--ansi")
+}
+
+///|
+test "cli: history option patterns" {
+  assert_true("--history".has_prefix("--history"))
+  assert_true("--history=/path/to/file".has_prefix("--history="))
 }

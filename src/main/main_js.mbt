@@ -11,6 +11,11 @@ fn main {
     return
   }
 
+  // JS target: these options are not supported (require native file I/O or stdin)
+  ignore(opts.read0) // Stdin reading not supported in JS
+  ignore(opts.filter) // Non-interactive mode not supported in JS
+  ignore(opts.history) // History file not supported in JS
+
   // Get terminal size
   let (width, term_height) = @io.get_terminal_size()
   // Use --height option if specified, otherwise use terminal height
@@ -21,6 +26,8 @@ fn main {
 
   // Apply --tac if specified (reverse input order)
   let items = if opts.tac { reverse_items(raw_items) } else { raw_items }
+  // JS target: history not supported (no file I/O)
+  let history : Array[String] = []
   run_app(
     items,
     width,
@@ -30,6 +37,7 @@ fn main {
     prompt=opts.prompt,
     pointer=opts.pointer,
     marker=opts.marker,
+    multi=opts.multi,
     cycle=opts.cycle,
     no_sort=opts.no_sort,
     nth=opts.nth,
@@ -41,5 +49,9 @@ fn main {
     ignore_case=opts.ignore_case,
     header=opts.header,
     print_query=opts.print_query,
+    with_nth=opts.with_nth,
+    expect=opts.expect,
+    ansi=opts.ansi,
+    history~,
   )
 }

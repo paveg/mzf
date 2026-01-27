@@ -26,6 +26,7 @@ fn run_app(
   prompt? : String = "> ",
   pointer? : String = "> ",
   marker? : String = "*",
+  multi? : Bool = false,
   cycle? : Bool = false,
   no_sort? : Bool = false,
   nth? : String = "",
@@ -37,7 +38,14 @@ fn run_app(
   ignore_case? : Bool = false,
   header? : String = "",
   print_query? : Bool = false,
+  with_nth? : String = "",
+  expect? : String = "",
+  ansi? : Bool = false,
+  history? : Array[String] = [],
+  history_file? : String = "",
 ) -> Unit {
+  // Store history_file for writing later (unused for now, requires async)
+  ignore(history_file)
   if items.length() == 0 {
     if exit_0 {
       // Exit immediately with no output
@@ -54,6 +62,7 @@ fn run_app(
     prompt~,
     pointer~,
     marker~,
+    multi~,
     cycle~,
     no_sort~,
     nth~,
@@ -61,12 +70,25 @@ fn run_app(
     exact~,
     ignore_case~,
     header~,
+    with_nth~,
+    expect~,
+    ansi~,
+    history~,
   )
 
   // Handle --select-1: auto-select if only one match
   if select_1 && app.filtered_count() == 1 {
     match app.get_first_filtered() {
       Some(text) => {
+        // Print expected key (empty for auto-select)
+        if expect.length() > 0 {
+          if print0 {
+            @io.print_raw("")
+            @io.print_raw("\u0000")
+          } else {
+            println("")
+          }
+        }
         // Print query first if requested
         if print_query {
           if print0 {
@@ -121,6 +143,16 @@ fn run_app(
       // Output result
       match app.get_result() {
         Some(result) => {
+          // Print expected key if --expect was used
+          let pressed = app.get_pressed_key()
+          if expect.length() > 0 {
+            if print0 {
+              @io.print_raw(pressed)
+              @io.print_raw("\u0000")
+            } else {
+              println(pressed)
+            }
+          }
           // Print query first if requested
           if print_query {
             if print0 {

@@ -27,6 +27,13 @@ struct CliOptions {
   filter : String // Non-interactive filter mode (-f, --filter)
   print_query : Bool // Print query as first line (--print-query)
   header : String // Header string (--header)
+  // Display transformation
+  with_nth : String // Field index for display (--with-nth)
+  // Key handling
+  expect : String // Expected keys to abort (--expect)
+  // Advanced options
+  ansi : Bool // Enable ANSI color processing (--ansi)
+  history : String // History file path (--history)
 }
 
 ///|
@@ -67,6 +74,10 @@ fn parse_args() -> CliOptions {
   let mut filter = ""
   let mut print_query = false
   let mut header = ""
+  let mut with_nth = ""
+  let mut expect = ""
+  let mut ansi = false
+  let mut history = ""
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -169,6 +180,29 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--header=") {
       header = extract_value(arg, 9)
+    } else if arg == "--with-nth" {
+      i = i + 1
+      if i < args.length() {
+        with_nth = args[i]
+      }
+    } else if arg.has_prefix("--with-nth=") {
+      with_nth = extract_value(arg, 11)
+    } else if arg == "--expect" {
+      i = i + 1
+      if i < args.length() {
+        expect = args[i]
+      }
+    } else if arg.has_prefix("--expect=") {
+      expect = extract_value(arg, 9)
+    } else if arg == "--ansi" {
+      ansi = true
+    } else if arg == "--history" {
+      i = i + 1
+      if i < args.length() {
+        history = args[i]
+      }
+    } else if arg.has_prefix("--history=") {
+      history = extract_value(arg, 10)
     }
     i = i + 1
   }
@@ -196,6 +230,10 @@ fn parse_args() -> CliOptions {
     filter,
     print_query,
     header,
+    with_nth,
+    expect,
+    ansi,
+    history,
   }
 }
 
@@ -234,20 +272,24 @@ fn print_help() -> Unit {
     "    --pointer <STR>          Pointer to current line (default: \"> \")\n" +
     "    --marker <STR>           Multi-select marker (default: \"*\")\n" +
     "    --header <STR>           Header string to display\n" +
+    "    --with-nth <N[,M,...]>   Transform display using field indices\n" +
+    "    --ansi                   Enable ANSI color processing\n" +
     "\n" +
     "  Behavior:\n" +
-    "    -m, --multi              Enable multi-select\n" +
+    "    -m, --multi              Enable multi-select (Tab to mark)\n" +
     "    --no-sort                Don't sort results by score\n" +
     "    --tac                    Reverse input order\n" +
     "    --cycle                  Enable cyclic scroll\n" +
     "    -1, --select-1           Auto-select if single match\n" +
     "    -0, --exit-0             Exit immediately if no match\n" +
+    "    --expect <KEYS>          Comma-separated keys to abort\n" +
     "\n" +
     "  Input/Output:\n" +
-    "    --read0                  Read NUL-delimited input\n" +
+    "    --read0                  Read NUL-delimited input [native]\n" +
     "    --print0                 Use NUL separator for output\n" +
-    "    -f, --filter <QUERY>     Filter mode (non-interactive)\n" +
+    "    -f, --filter <QUERY>     Filter mode (non-interactive) [native]\n" +
     "    --print-query            Print query as first line of output\n" +
+    "    --history <FILE>         History file path [native]\n" +
     "\n" +
     "  Other:\n" +
     "    -h, --help               Show this help message\n" +
@@ -255,19 +297,25 @@ fn print_help() -> Unit {
     "\n" +
     "KEYBINDINGS:\n" +
     "    Enter        Select current item\n" +
-    "    Tab          Toggle mark (multi-select)\n" +
+    "    Tab          Toggle mark (requires -m)\n" +
     "    Esc, Ctrl-c  Cancel\n" +
-    "    Up, Ctrl-p   Move up\n" +
-    "    Down, Ctrl-n Move down\n" +
+    "    Up           Move up / History prev (with --history)\n" +
+    "    Down         Move down / History next (with --history)\n" +
+    "    Ctrl-p       History prev (with --history) / Move up\n" +
+    "    Ctrl-n       History next (with --history) / Move down\n" +
     "    Ctrl-u       Clear query\n" +
+    "\n" +
+    "NOTE:\n" +
+    "    Options marked [native] require native build (not JS target).\n" +
     "\n" +
     "EXAMPLES:\n" +
     "    find . -type f | mzf\n" +
     "    ls | mzf -q txt\n" +
-    "    ls | mzf --reverse --pointer='▶ ' --marker='✓'\n" +
+    "    ls | mzf -m --reverse --pointer='▶ ' --marker='✓'\n" +
     "    ps aux | mzf -n 1,2 -d ' '  # Match process name and user\n" +
     "    echo -e 'foo\\nbar' | mzf -e -q oo  # Exact match\n" +
-    "    find . | mzf -f src  # Filter mode (non-interactive)\n"
+    "    find . | mzf -f src  # Filter mode (non-interactive)\n" +
+    "    ls --color=always | mzf --ansi  # Preserve colors\n"
   println(help)
 }
 

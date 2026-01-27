@@ -196,7 +196,7 @@ test "multiselect: toggle_mark adds item to marked" {
     @core.Item::new("b.txt", 1),
     @core.Item::new("c.txt", 2),
   ]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark()
   assert_eq(app.marked.length(), 1)
   assert_eq(app.marked[0], 0) // original_index of first item
@@ -209,7 +209,7 @@ test "multiselect: toggle_mark moves selection down" {
     @core.Item::new("b.txt", 1),
     @core.Item::new("c.txt", 2),
   ]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   assert_eq(app.selected_idx, 0)
   app.toggle_mark()
   assert_eq(app.selected_idx, 1)
@@ -218,7 +218,7 @@ test "multiselect: toggle_mark moves selection down" {
 ///|
 test "multiselect: toggle_mark removes item if already marked" {
   let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark() // Add
   assert_eq(app.marked.length(), 1)
   app.selected_idx = 0 // Go back to first item
@@ -229,7 +229,7 @@ test "multiselect: toggle_mark removes item if already marked" {
 ///|
 test "multiselect: toggle_mark on empty filtered does nothing" {
   let items = [@core.Item::new("test.txt", 0)]
-  let app = App::new(items, 80, 24, initial_query="xyz")
+  let app = App::new(items, 80, 24, multi=true, initial_query="xyz")
   assert_eq(app.filtered.length(), 0)
   app.toggle_mark()
   assert_eq(app.marked.length(), 0)
@@ -238,7 +238,7 @@ test "multiselect: toggle_mark on empty filtered does nothing" {
 ///|
 test "multiselect: is_marked returns true for marked item" {
   let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark()
   assert_eq(app.is_marked(0), true)
   assert_eq(app.is_marked(1), false)
@@ -251,7 +251,7 @@ test "multiselect: mark multiple items" {
     @core.Item::new("b.txt", 1),
     @core.Item::new("c.txt", 2),
   ]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark() // Mark a.txt, moves to b.txt
   app.toggle_mark() // Mark b.txt, moves to c.txt
   assert_eq(app.marked.length(), 2)
@@ -267,7 +267,7 @@ test "multiselect: confirm returns all marked items" {
     @core.Item::new("b.txt", 1),
     @core.Item::new("c.txt", 2),
   ]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark() // Mark a.txt
   app.toggle_mark() // Mark b.txt
   app.confirm_selection()
@@ -297,7 +297,7 @@ test "multiselect: marked items separated by newline" {
     @core.Item::new("first.txt", 0),
     @core.Item::new("second.txt", 1),
   ]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark()
   app.toggle_mark()
   app.confirm_selection()
@@ -311,7 +311,7 @@ test "multiselect: marked items separated by newline" {
 ///|
 test "multiselect: render shows marker for marked items" {
   let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark() // Mark first item
   let output = app.render()
   assert_true(output.contains("*"))
@@ -324,7 +324,7 @@ test "multiselect: status line shows marked count" {
     @core.Item::new("b.txt", 1),
     @core.Item::new("c.txt", 2),
   ]
-  let app = App::new(items, 80, 24)
+  let app = App::new(items, 80, 24, multi=true)
   app.toggle_mark()
   app.toggle_mark()
   let output = app.render()
@@ -367,7 +367,7 @@ test "options: custom pointer" {
 ///|
 test "options: custom marker" {
   let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
-  let app = App::new(items, 80, 24, marker="✓")
+  let app = App::new(items, 80, 24, multi=true, marker="✓")
   assert_eq(app.marker, "✓")
   app.toggle_mark()
   let output = app.render()
@@ -621,4 +621,177 @@ test "header: render includes header" {
   let app = App::new(items, 80, 24, header="My Header")
   let output = app.render()
   assert_true(output.contains("My Header"))
+}
+
+// =============================================================================
+// with-nth Tests (TDD)
+// =============================================================================
+
+///|
+test "with_nth: default is empty" {
+  let items = [@core.Item::new("a b c", 0)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.with_nth, "")
+}
+
+///|
+test "with_nth: custom value" {
+  let items = [@core.Item::new("a b c", 0)]
+  let app = App::new(items, 80, 24, with_nth="1,3", delimiter=" ")
+  assert_eq(app.with_nth, "1,3")
+}
+
+// =============================================================================
+// expect Tests (TDD)
+// =============================================================================
+
+///|
+test "expect: default is empty" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.expect, "")
+}
+
+///|
+test "expect: custom value" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24, expect="ctrl-v,ctrl-o")
+  assert_eq(app.expect, "ctrl-v,ctrl-o")
+}
+
+// =============================================================================
+// ansi Tests (TDD)
+// =============================================================================
+
+///|
+test "ansi: default is false" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.ansi, false)
+}
+
+///|
+test "ansi: enabled" {
+  let items = [@core.Item::new("\u001b[31mred\u001b[0m", 0)]
+  let app = App::new(items, 80, 24, ansi=true)
+  assert_eq(app.ansi, true)
+}
+
+///|
+test "ansi: filters by stripped text" {
+  let items = [
+    @core.Item::new("\u001b[31mred\u001b[0m", 0),
+    @core.Item::new("\u001b[32mgreen\u001b[0m", 1),
+    @core.Item::new("\u001b[34mblue\u001b[0m", 2),
+  ]
+  let app = App::new(items, 80, 24, ansi=true, initial_query="gre")
+  // Should match "green" even though it has ANSI codes
+  assert_eq(app.filtered.length(), 1)
+  // Result should preserve original text with ANSI codes
+  assert_true(app.filtered[0].item.text.contains("\u001b[32m"))
+}
+
+///|
+test "ansi: preserves original text in result" {
+  let items = [@core.Item::new("\u001b[1;33myellow\u001b[0m", 0)]
+  let app = App::new(items, 80, 24, ansi=true, initial_query="yell")
+  assert_eq(app.filtered.length(), 1)
+  // Original text with ANSI should be preserved
+  assert_eq(app.filtered[0].item.text, "\u001b[1;33myellow\u001b[0m")
+}
+
+///|
+test "ansi: works with exact mode" {
+  let items = [
+    @core.Item::new("\u001b[31mabc\u001b[0m", 0),
+    @core.Item::new("\u001b[32mabXc\u001b[0m", 1),
+  ]
+  let app = App::new(items, 80, 24, ansi=true, exact=true, initial_query="abc")
+  // Only "abc" should match in exact mode
+  assert_eq(app.filtered.length(), 1)
+  assert_true(app.filtered[0].item.text.contains("abc"))
+}
+
+// =============================================================================
+// History Tests (TDD)
+// =============================================================================
+
+///|
+test "history: default is empty" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.has_history(), false)
+  assert_eq(app.history_idx, -1)
+}
+
+///|
+test "history: custom history" {
+  let items = [@core.Item::new("test", 0)]
+  let history = ["query1", "query2", "query3"]
+  let app = App::new(items, 80, 24, history~)
+  assert_eq(app.has_history(), true)
+  assert_eq(app.history.length(), 3)
+}
+
+///|
+test "history: navigate prev" {
+  let items = [@core.Item::new("test", 0)]
+  let history = ["old1", "old2", "recent"]
+  let app = App::new(items, 80, 24, history~, initial_query="current")
+
+  // Navigate to most recent history entry
+  app.history_prev()
+  assert_eq(app.history_idx, 0)
+  assert_eq(app.query, "recent")
+
+  // Navigate to older entry
+  app.history_prev()
+  assert_eq(app.history_idx, 1)
+  assert_eq(app.query, "old2")
+}
+
+///|
+test "history: navigate next returns to current" {
+  let items = [@core.Item::new("test", 0)]
+  let history = ["old", "recent"]
+  let app = App::new(items, 80, 24, history~, initial_query="current")
+
+  // Go back in history
+  app.history_prev()
+  assert_eq(app.query, "recent")
+
+  // Return to current query
+  app.history_next()
+  assert_eq(app.history_idx, -1)
+  assert_eq(app.query, "current")
+}
+
+///|
+test "history: reset on char input" {
+  let items = [@core.Item::new("test", 0)]
+  let history = ["old"]
+  let app = App::new(items, 80, 24, history~)
+
+  // Navigate to history
+  app.history_prev()
+  assert_eq(app.history_idx, 0)
+
+  // Type a character should reset history
+  app.handle_char('x')
+  assert_eq(app.history_idx, -1)
+}
+
+///|
+test "history: saved_query preserves original" {
+  let items = [@core.Item::new("test", 0)]
+  let history = ["old"]
+  let app = App::new(items, 80, 24, history~, initial_query="my query")
+
+  // Navigate to history - should save current query
+  app.history_prev()
+  assert_eq(app.saved_query, "my query")
+
+  // Navigate back - should restore
+  app.history_next()
+  assert_eq(app.query, "my query")
 }
