@@ -112,9 +112,10 @@ jobs:
 
       - name: Prepare npm package
         run: |
-          mkdir -p npm-dist
+          mkdir -p npm-dist/bin
           cp _build/js/release/build/main/main.js npm-dist/mzf.js
           cp package.json npm-dist/
+          cp -r bin/* npm-dist/bin/
           cp README.md npm-dist/ 2>/dev/null || echo "# mzf" > npm-dist/README.md
 
       - name: Upload npm artifact
