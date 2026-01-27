@@ -736,8 +736,12 @@ fn App::render_prompt_line(self : App, buf : StringBuilder) -> Unit {
   buf.write_string(self.colors.prompt)
   buf.write_string(self.prompt)
   buf.write_string(ansi_reset)
+  // Ensure query text is visible with explicit default color
+  buf.write_string("\u001b[39m") // Default foreground color
   buf.write_string(self.query)
+  buf.write_string(ansi_dim)
   buf.write_string("_")
+  buf.write_string(ansi_reset)
   // Add inline info after cursor if enabled
   if self.info == "inline" {
     buf.write_string(" ")
