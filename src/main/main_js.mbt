@@ -17,7 +17,11 @@ fn main {
   let height = if opts.height > 0 { opts.height } else { term_height }
 
   // JS target: use demo data (stdin pipe reading requires different approach)
-  let items = get_demo_items()
+  let raw_items = get_demo_items()
+
+  // Apply --tac if specified (reverse input order)
+  let items = if opts.tac { reverse_items(raw_items) } else { raw_items }
+
   run_app(
     items,
     width,
@@ -27,5 +31,12 @@ fn main {
     prompt=opts.prompt,
     pointer=opts.pointer,
     marker=opts.marker,
+    cycle=opts.cycle,
+    no_sort=opts.no_sort,
+    nth=opts.nth,
+    delimiter=opts.delimiter,
+    select_1=opts.select_1,
+    exit_0=opts.exit_0,
+    print0=opts.print0,
   )
 }

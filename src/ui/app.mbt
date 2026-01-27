@@ -1,4 +1,114 @@
 ///|
+/// Split string by delimiter
+fn split_by_delimiter(text : String, delimiter : String) -> Array[String] {
+  let fields : Array[String] = []
+  let delim_char = delimiter.iter().collect()[0] // Assume single char delimiter
+  let chars : Array[Char] = text.iter().collect()
+  let buf = StringBuilder::new()
+  for i = 0; i < chars.length(); i = i + 1 {
+    if chars[i] == delim_char {
+      fields.push(buf.to_string())
+      buf.reset()
+    } else {
+      buf.write_char(chars[i])
+    }
+  }
+  // Add last field
+  fields.push(buf.to_string())
+  fields
+}
+
+///|
+/// Parse nth indices (e.g., "1,2,3" or "-1")
+fn parse_nth_indices(nth : String) -> Array[Int] {
+  let indices : Array[Int] = []
+  let chars : Array[Char] = nth.iter().collect()
+  let buf = StringBuilder::new()
+  let mut negative = false
+  for i = 0; i < chars.length(); i = i + 1 {
+    let c = chars[i]
+    if c == ',' {
+      if buf.to_string().length() > 0 {
+        let val = parse_nth_int(buf.to_string())
+        indices.push(if negative { -val } else { val })
+      }
+      buf.reset()
+      negative = false
+    } else if c == '-' {
+      negative = true
+    } else if c >= '0' && c <= '9' {
+      buf.write_char(c)
+    }
+  }
+  // Add last number
+  if buf.to_string().length() > 0 {
+    let val = parse_nth_int(buf.to_string())
+    indices.push(if negative { -val } else { val })
+  }
+  indices
+}
+
+///|
+/// Parse integer from string
+fn parse_nth_int(s : String) -> Int {
+  let mut result = 0
+  for c in s {
+    if c >= '0' && c <= '9' {
+      result = result * 10 + (c.to_int() - '0'.to_int())
+    }
+  }
+  result
+}
+
+///|
+/// Extract fields by indices (1-indexed, negative from end)
+fn extract_fields(fields : Array[String], indices : Array[Int]) -> String {
+  let buf = StringBuilder::new()
+  for i = 0; i < indices.length(); i = i + 1 {
+    let idx = indices[i]
+    let actual_idx = if idx < 0 {
+      fields.length() + idx // -1 means last field
+    } else {
+      idx - 1 // 1-indexed to 0-indexed
+    }
+    if actual_idx >= 0 && actual_idx < fields.length() {
+      if i > 0 {
+        buf.write_string(" ")
+      }
+      buf.write_string(fields[actual_idx])
+    }
+  }
+  buf.to_string()
+}
+
+///|
+/// Filter with nth field matching
+fn filter_with_nth(
+  pattern : String,
+  items : Array[@core.Item],
+  nth : String,
+  delimiter : String,
+  no_sort : Bool,
+) -> Array[@core.MatchResult] {
+  let indices = parse_nth_indices(nth)
+  let results : Array[@core.MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    let fields = split_by_delimiter(item.text, delimiter)
+    let match_text = extract_fields(fields, indices)
+    match @core.fuzzy_match(pattern, match_text) {
+      Some((score, positions)) =>
+        results.push(@core.MatchResult::new(item, score, positions))
+      None => ()
+    }
+  }
+  if not(no_sort) {
+    results.sort_by(fn(a, b) { b.score - a.score })
+  }
+  results
+}
+
+///|
 /// Main application state for mzf
 pub struct App {
   mut query : String
@@ -16,6 +126,11 @@ pub struct App {
   prompt : String // Input prompt string
   pointer : String // Pointer/cursor string
   marker : String // Marker string for multi-select
+  // Behavior options
+  cycle : Bool // Enable cyclic scroll
+  no_sort : Bool // Don't sort results by score
+  nth : String // Field indices for matching
+  delimiter : String // Field delimiter
 }
 
 ///|
@@ -28,6 +143,10 @@ pub fn App::new(
   prompt? : String = "> ",
   pointer? : String = "> ",
   marker? : String = "*",
+  cycle? : Bool = false,
+  no_sort? : Bool = false,
+  nth? : String = "",
+  delimiter? : String = "",
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -43,6 +162,10 @@ pub fn App::new(
     prompt,
     pointer,
     marker,
+    cycle,
+    no_sort,
+    nth,
+    delimiter,
   }
   // Apply initial filter
   app.update_filter()
@@ -57,6 +180,18 @@ fn App::update_filter(self : App) -> Unit {
     self.filtered = self.items.mapi(fn(_i, item) {
       @core.MatchResult::new(item, 0, [])
     })
+  } else if self.nth.length() > 0 && self.delimiter.length() > 0 {
+    // Field-specific matching with nth
+    self.filtered = filter_with_nth(
+      self.query,
+      self.items,
+      self.nth,
+      self.delimiter,
+      self.no_sort,
+    )
+  } else if self.no_sort {
+    // Filter without sorting (keep original order)
+    self.filtered = @core.filter_without_sort(self.query, self.items)
   } else {
     self.filtered = @core.filter_and_score(self.query, self.items)
   }
@@ -75,6 +210,9 @@ fn App::update_filter(self : App) -> Unit {
 fn App::select_up(self : App) -> Unit {
   if self.selected_idx > 0 {
     self.selected_idx = self.selected_idx - 1
+  } else if self.cycle && self.filtered.length() > 0 {
+    // Wrap to bottom
+    self.selected_idx = self.filtered.length() - 1
   }
 }
 
@@ -83,6 +221,9 @@ fn App::select_up(self : App) -> Unit {
 fn App::select_down(self : App) -> Unit {
   if self.selected_idx < self.filtered.length() - 1 {
     self.selected_idx = self.selected_idx + 1
+  } else if self.cycle && self.filtered.length() > 0 {
+    // Wrap to top
+    self.selected_idx = 0
   }
 }
 
@@ -411,4 +552,20 @@ pub fn App::is_running(self : App) -> Bool {
 /// Get result
 pub fn App::get_result(self : App) -> String? {
   self.result
+}
+
+///|
+/// Get number of filtered items
+pub fn App::filtered_count(self : App) -> Int {
+  self.filtered.length()
+}
+
+///|
+/// Get first filtered item text (for --select-1)
+pub fn App::get_first_filtered(self : App) -> String? {
+  if self.filtered.length() > 0 {
+    Some(self.filtered[0].item.text)
+  } else {
+    None
+  }
 }

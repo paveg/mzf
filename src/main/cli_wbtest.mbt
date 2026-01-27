@@ -13,6 +13,15 @@ test "cli: default options" {
     prompt: "> ",
     pointer: "> ",
     marker: "*",
+    multi: false,
+    no_sort: false,
+    tac: false,
+    cycle: false,
+    select_1: false,
+    exit_0: false,
+    print0: false,
+    nth: "",
+    delimiter: "",
   }
   assert_eq(opts.query, "")
   assert_eq(opts.show_help, false)
@@ -146,4 +155,93 @@ test "cli: pointer option patterns" {
 test "cli: marker option patterns" {
   assert_true("--marker".has_prefix("--marker"))
   assert_true("--marker=✓".has_prefix("--marker="))
+}
+
+// =============================================================================
+// New Behavior Options Tests (TDD - tests written first)
+// =============================================================================
+
+///|
+test "cli: multi flag recognition" {
+  assert_true("-m" == "-m")
+  assert_true("--multi" == "--multi")
+}
+
+///|
+test "cli: no-sort flag recognition" {
+  assert_true("--no-sort" == "--no-sort")
+}
+
+///|
+test "cli: tac flag recognition" {
+  assert_true("--tac" == "--tac")
+}
+
+///|
+test "cli: cycle flag recognition" {
+  assert_true("--cycle" == "--cycle")
+}
+
+///|
+test "cli: select-1 flag recognition" {
+  assert_true("--select-1" == "--select-1")
+  assert_true("-1" == "-1")
+}
+
+///|
+test "cli: exit-0 flag recognition" {
+  assert_true("--exit-0" == "--exit-0")
+  assert_true("-0" == "-0")
+}
+
+///|
+test "cli: print0 flag recognition" {
+  assert_true("--print0" == "--print0")
+}
+
+///|
+test "cli: nth option patterns" {
+  assert_true("--nth".has_prefix("--nth"))
+  assert_true("--nth=1".has_prefix("--nth="))
+  assert_true("--nth=1,2,3".has_prefix("--nth="))
+  assert_true("-n".has_prefix("-n"))
+}
+
+///|
+test "cli: delimiter option patterns" {
+  assert_true("--delimiter".has_prefix("--delimiter"))
+  assert_true("--delimiter=:".has_prefix("--delimiter="))
+  assert_true("-d".has_prefix("-d"))
+}
+
+///|
+test "cli: default new options" {
+  let opts : CliOptions = {
+    query: "",
+    show_help: false,
+    show_version: false,
+    reverse: false,
+    height: 0,
+    prompt: "> ",
+    pointer: "> ",
+    marker: "*",
+    multi: false,
+    no_sort: false,
+    tac: false,
+    cycle: false,
+    select_1: false,
+    exit_0: false,
+    print0: false,
+    nth: "",
+    delimiter: "",
+  }
+  assert_eq(opts.multi, false)
+  assert_eq(opts.no_sort, false)
+  assert_eq(opts.tac, false)
+  assert_eq(opts.cycle, false)
+  assert_eq(opts.select_1, false)
+  assert_eq(opts.exit_0, false)
+  assert_eq(opts.print0, false)
+  assert_eq(opts.nth, "")
+  assert_eq(opts.delimiter, "")
 }

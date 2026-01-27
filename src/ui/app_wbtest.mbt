@@ -401,3 +401,139 @@ test "options: combined options" {
   assert_eq(app.pointer, "→ ")
   assert_eq(app.marker, "●")
 }
+
+// =============================================================================
+// Cycle Mode Tests (TDD - tests written first)
+// =============================================================================
+
+///|
+test "cycle: select_down wraps to top" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+    @core.Item::new("c.txt", 2),
+  ]
+  let app = App::new(items, 80, 24, cycle=true)
+  app.selected_idx = 2 // At bottom
+  app.select_down() // Should wrap to top
+  assert_eq(app.selected_idx, 0)
+}
+
+///|
+test "cycle: select_up wraps to bottom" {
+  let items = [
+    @core.Item::new("a.txt", 0),
+    @core.Item::new("b.txt", 1),
+    @core.Item::new("c.txt", 2),
+  ]
+  let app = App::new(items, 80, 24, cycle=true)
+  app.selected_idx = 0 // At top
+  app.select_up() // Should wrap to bottom
+  assert_eq(app.selected_idx, 2)
+}
+
+///|
+test "cycle: disabled by default" {
+  let items = [@core.Item::new("a.txt", 0), @core.Item::new("b.txt", 1)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.cycle, false)
+  app.selected_idx = 1
+  app.select_down() // Should stay at bottom
+  assert_eq(app.selected_idx, 1)
+}
+
+// =============================================================================
+// No-Sort Mode Tests (TDD - tests written first)
+// =============================================================================
+
+///|
+test "no_sort: keeps original order" {
+  let items = [
+    @core.Item::new("zebra.txt", 0),
+    @core.Item::new("alpha.txt", 1),
+    @core.Item::new("beta.txt", 2),
+  ]
+  let app = App::new(items, 80, 24, no_sort=true, initial_query="a")
+  // With no_sort, filtered items should keep original order
+  // "zebra" has 'a', "alpha" has 'a', "beta" has 'a'
+  // Without sorting, order should be: zebra, alpha, beta
+  assert_eq(app.filtered[0].item.text, "zebra.txt")
+  assert_eq(app.filtered[1].item.text, "alpha.txt")
+  assert_eq(app.filtered[2].item.text, "beta.txt")
+}
+
+///|
+test "no_sort: disabled by default sorts by score" {
+  let items = [@core.Item::new("xxxabc.txt", 0), @core.Item::new("abc.txt", 1)]
+  let app = App::new(items, 80, 24, initial_query="abc")
+  assert_eq(app.no_sort, false)
+  // With sorting, "abc.txt" should be first (better match)
+  assert_eq(app.filtered[0].item.text, "abc.txt")
+}
+
+// =============================================================================
+// Nth Field Matching Tests (TDD - tests written first)
+// =============================================================================
+
+///|
+test "nth: match first field only" {
+  let items = [
+    @core.Item::new("foo:bar:baz", 0),
+    @core.Item::new("bar:foo:baz", 1),
+    @core.Item::new("baz:bar:foo", 2),
+  ]
+  let app = App::new(items, 80, 24, initial_query="foo", nth="1", delimiter=":")
+  // Only first item should match (foo in first field)
+  assert_eq(app.filtered.length(), 1)
+  assert_eq(app.filtered[0].item.text, "foo:bar:baz")
+}
+
+///|
+test "nth: match multiple fields" {
+  let items = [
+    @core.Item::new("a:b:c", 0),
+    @core.Item::new("x:a:y", 1),
+    @core.Item::new("x:y:a", 2),
+  ]
+  let app = App::new(items, 80, 24, initial_query="a", nth="1,2", delimiter=":")
+  // First two should match (a in field 1 or 2)
+  assert_eq(app.filtered.length(), 2)
+}
+
+///|
+test "nth: negative index from end" {
+  let items = [@core.Item::new("a:b:foo", 0), @core.Item::new("foo:b:c", 1)]
+  let app = App::new(
+    items,
+    80,
+    24,
+    initial_query="foo",
+    nth="-1",
+    delimiter=":",
+  )
+  // Only first item should match (foo in last field)
+  assert_eq(app.filtered.length(), 1)
+  assert_eq(app.filtered[0].item.text, "a:b:foo")
+}
+
+///|
+test "nth: empty nth matches all fields (default)" {
+  let items = [@core.Item::new("foo:bar", 0), @core.Item::new("bar:foo", 1)]
+  let app = App::new(items, 80, 24, initial_query="foo", nth="", delimiter=":")
+  // Both should match
+  assert_eq(app.filtered.length(), 2)
+}
+
+///|
+test "delimiter: default is empty (no field splitting)" {
+  let items = [@core.Item::new("foo:bar", 0)]
+  let app = App::new(items, 80, 24)
+  assert_eq(app.delimiter, "")
+}
+
+///|
+test "delimiter: custom delimiter" {
+  let items = [@core.Item::new("foo|bar|baz", 0)]
+  let app = App::new(items, 80, 24, delimiter="|")
+  assert_eq(app.delimiter, "|")
+}

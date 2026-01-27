@@ -9,6 +9,16 @@ struct CliOptions {
   prompt : String // Prompt string (--prompt)
   pointer : String // Pointer/cursor string (--pointer)
   marker : String // Marker string for multi-select (--marker)
+  // New behavior options
+  multi : Bool // Enable multi-select (-m, --multi)
+  no_sort : Bool // Don't sort results (--no-sort)
+  tac : Bool // Reverse input order (--tac)
+  cycle : Bool // Enable cyclic scroll (--cycle)
+  select_1 : Bool // Auto-select if single match (-1, --select-1)
+  exit_0 : Bool // Exit if no match (-0, --exit-0)
+  print0 : Bool // Use NUL separator (--print0)
+  nth : String // Field index for matching (-n, --nth)
+  delimiter : String // Field delimiter (-d, --delimiter)
 }
 
 ///|
@@ -34,6 +44,15 @@ fn parse_args() -> CliOptions {
   let mut prompt = "> "
   let mut pointer = "> "
   let mut marker = "*"
+  let mut multi = false
+  let mut no_sort = false
+  let mut tac = false
+  let mut cycle = false
+  let mut select_1 = false
+  let mut exit_0 = false
+  let mut print0 = false
+  let mut nth = ""
+  let mut delimiter = ""
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -43,6 +62,20 @@ fn parse_args() -> CliOptions {
       show_version = true
     } else if arg == "--reverse" {
       reverse = true
+    } else if arg == "-m" || arg == "--multi" {
+      multi = true
+    } else if arg == "--no-sort" {
+      no_sort = true
+    } else if arg == "--tac" {
+      tac = true
+    } else if arg == "--cycle" {
+      cycle = true
+    } else if arg == "-1" || arg == "--select-1" {
+      select_1 = true
+    } else if arg == "-0" || arg == "--exit-0" {
+      exit_0 = true
+    } else if arg == "--print0" {
+      print0 = true
     } else if arg == "-q" || arg == "--query" {
       i = i + 1
       if i < args.length() {
@@ -80,10 +113,46 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--marker=") {
       marker = extract_value(arg, 9)
+    } else if arg == "-n" || arg == "--nth" {
+      i = i + 1
+      if i < args.length() {
+        nth = args[i]
+      }
+    } else if arg.has_prefix("--nth=") {
+      nth = extract_value(arg, 6)
+    } else if arg.has_prefix("-n=") {
+      nth = extract_value(arg, 3)
+    } else if arg == "-d" || arg == "--delimiter" {
+      i = i + 1
+      if i < args.length() {
+        delimiter = args[i]
+      }
+    } else if arg.has_prefix("--delimiter=") {
+      delimiter = extract_value(arg, 12)
+    } else if arg.has_prefix("-d=") {
+      delimiter = extract_value(arg, 3)
     }
     i = i + 1
   }
-  { query, show_help, show_version, reverse, height, prompt, pointer, marker }
+  {
+    query,
+    show_help,
+    show_version,
+    reverse,
+    height,
+    prompt,
+    pointer,
+    marker,
+    multi,
+    no_sort,
+    tac,
+    cycle,
+    select_1,
+    exit_0,
+    print0,
+    nth,
+    delimiter,
+  }
 }
 
 ///|
@@ -107,12 +176,28 @@ fn print_help() -> Unit {
     "    command | mzf [OPTIONS]\n" +
     "\n" +
     "OPTIONS:\n" +
+    "  Search:\n" +
     "    -q, --query <QUERY>      Start with the given query\n" +
+    "    -n, --nth <N[,M,...]>    Match only in specified fields\n" +
+    "    -d, --delimiter <STR>    Field delimiter (default: none)\n" +
+    "\n" +
+    "  Display:\n" +
     "    --reverse                Display from top to bottom\n" +
     "    --height <N>             Maximum height (default: full screen)\n" +
     "    --prompt <STR>           Input prompt (default: \"> \")\n" +
     "    --pointer <STR>          Pointer to current line (default: \"> \")\n" +
     "    --marker <STR>           Multi-select marker (default: \"*\")\n" +
+    "\n" +
+    "  Behavior:\n" +
+    "    -m, --multi              Enable multi-select\n" +
+    "    --no-sort                Don't sort results by score\n" +
+    "    --tac                    Reverse input order\n" +
+    "    --cycle                  Enable cyclic scroll\n" +
+    "    -1, --select-1           Auto-select if single match\n" +
+    "    -0, --exit-0             Exit immediately if no match\n" +
+    "    --print0                 Use NUL separator for output\n" +
+    "\n" +
+    "  Other:\n" +
     "    -h, --help               Show this help message\n" +
     "    -v, --version            Show version information\n" +
     "\n" +
@@ -127,7 +212,9 @@ fn print_help() -> Unit {
     "EXAMPLES:\n" +
     "    find . -type f | mzf\n" +
     "    ls | mzf -q txt\n" +
-    "    ls | mzf --reverse --pointer='▶ ' --marker='✓'\n"
+    "    ls | mzf --reverse --pointer='▶ ' --marker='✓'\n" +
+    "    ps aux | mzf -n 1,2 -d ' '  # Match process name and user\n" +
+    "    mzf --cycle --no-sort < file.txt\n"
   println(help)
 }
 

@@ -171,3 +171,22 @@ pub fn filter_and_score(
   results.sort_by(fn(a, b) { b.score - a.score })
   results
 }
+
+///|
+/// Filter items without sorting (keep original order)
+pub fn filter_without_sort(
+  pattern : String,
+  items : Array[Item],
+) -> Array[MatchResult] {
+  let results : Array[MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    match fuzzy_match(pattern, item.text) {
+      Some((score, positions)) =>
+        results.push(MatchResult::new(item, score, positions))
+      None => ()
+    }
+  }
+  // No sorting - keep original order
+  results
+}

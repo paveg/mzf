@@ -26,8 +26,19 @@ fn run_app(
   prompt? : String = "> ",
   pointer? : String = "> ",
   marker? : String = "*",
+  cycle? : Bool = false,
+  no_sort? : Bool = false,
+  nth? : String = "",
+  delimiter? : String = "",
+  select_1? : Bool = false,
+  exit_0? : Bool = false,
+  print0? : Bool = false,
 ) -> Unit {
   if items.length() == 0 {
+    if exit_0 {
+      // Exit immediately with no output
+      return
+    }
     return
   }
   let app = @ui.App::new(
@@ -39,7 +50,32 @@ fn run_app(
     prompt~,
     pointer~,
     marker~,
+    cycle~,
+    no_sort~,
+    nth~,
+    delimiter~,
   )
+
+  // Handle --select-1: auto-select if only one match
+  if select_1 && app.filtered_count() == 1 {
+    match app.get_first_filtered() {
+      Some(text) => {
+        if print0 {
+          @io.print_raw(text)
+          @io.print_raw("\u0000")
+        } else {
+          println(text)
+        }
+      }
+      None => ()
+    }
+    return
+  }
+
+  // Handle --exit-0: exit if no matches
+  if exit_0 && app.filtered_count() == 0 {
+    return
+  }
 
   // Enter alternate screen and enable raw mode
   @io.print_raw("\u001b[?1049h") // Enter alternate screen
@@ -68,9 +104,54 @@ fn run_app(
 
       // Output result
       match app.get_result() {
-        Some(result) => println(result)
+        Some(result) =>
+          if print0 {
+            // Use NUL separator for xargs -0
+            let lines = split_lines(result)
+            for i = 0; i < lines.length(); i = i + 1 {
+              @io.print_raw(lines[i])
+              @io.print_raw("\u0000")
+            }
+          } else {
+            println(result)
+          }
         None => ()
       }
     }
   })
+}
+
+///|
+/// Reverse an array of items
+fn reverse_items(items : Array[@core.Item]) -> Array[@core.Item] {
+  let result : Array[@core.Item] = []
+  for i = items.length() - 1; i >= 0; i = i - 1 {
+    result.push(items[i])
+  }
+  // Re-assign original indices
+  for i = 0; i < result.length(); i = i + 1 {
+    result[i] = @core.Item::new(result[i].text, i)
+  }
+  result
+}
+
+///|
+/// Split string by newline
+fn split_lines(s : String) -> Array[String] {
+  let lines : Array[String] = []
+  let chars : Array[Char] = s.iter().collect()
+  let buf = StringBuilder::new()
+  for i = 0; i < chars.length(); i = i + 1 {
+    if chars[i] == '\n' {
+      lines.push(buf.to_string())
+      buf.reset()
+    } else {
+      buf.write_char(chars[i])
+    }
+  }
+  // Add last line if any
+  if buf.to_string().length() > 0 {
+    lines.push(buf.to_string())
+  }
+  lines
 }

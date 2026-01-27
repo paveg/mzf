@@ -71,13 +71,17 @@ async fn async_main() -> Unit {
   let height = if opts.height > 0 { opts.height } else { term_height }
 
   // Read items from stdin or use demo data
-  let items = if stdin_is_tty() {
+  let raw_items = if stdin_is_tty() {
     // No pipe input, use demo data for testing
     get_demo_items()
   } else {
     // Read from stdin pipe
     read_stdin_lines()
   }
+
+  // Apply --tac if specified (reverse input order)
+  let items = if opts.tac { reverse_items(raw_items) } else { raw_items }
+
   run_app(
     items,
     width,
@@ -87,6 +91,13 @@ async fn async_main() -> Unit {
     prompt=opts.prompt,
     pointer=opts.pointer,
     marker=opts.marker,
+    cycle=opts.cycle,
+    no_sort=opts.no_sort,
+    nth=opts.nth,
+    delimiter=opts.delimiter,
+    select_1=opts.select_1,
+    exit_0=opts.exit_0,
+    print0=opts.print0,
   )
 }
 
