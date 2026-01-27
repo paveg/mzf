@@ -13,17 +13,25 @@
 // Store original terminal settings for restoration
 static struct termios orig_termios;
 static int raw_mode_enabled = 0;
-static int tty_fd = -1;  // File descriptor for /dev/tty
 
-// Get TTY file descriptor (open /dev/tty if stdin is not a TTY)
+// File descriptor for keyboard input (STDIN_FILENO or /dev/tty)
+static int tty_fd = -1;
+static int tty_fd_opened = 0; // 1 if we opened /dev/tty ourselves
+
+// Get the file descriptor for keyboard input
+// Falls back to /dev/tty if stdin is not a tty (e.g., when used in a pipe)
 static int get_tty_fd(void) {
     if (tty_fd >= 0) return tty_fd;
 
     if (isatty(STDIN_FILENO)) {
         tty_fd = STDIN_FILENO;
+        tty_fd_opened = 0;
     } else {
-        // stdin is piped, open /dev/tty for keyboard input
+        // stdin is not a tty (piped input), try /dev/tty
         tty_fd = open("/dev/tty", O_RDONLY);
+        if (tty_fd >= 0) {
+            tty_fd_opened = 1;
+        }
     }
     return tty_fd;
 }
@@ -68,9 +76,10 @@ int tui_disable_raw_mode(void) {
     if (tcsetattr(fd, TCSADRAIN, &orig_termios) == -1) return -1;
 
     // Close /dev/tty if we opened it
-    if (tty_fd >= 0 && tty_fd != STDIN_FILENO) {
+    if (tty_fd_opened && tty_fd >= 0) {
         close(tty_fd);
         tty_fd = -1;
+        tty_fd_opened = 0;
     }
 
     raw_mode_enabled = 0;
@@ -99,7 +108,7 @@ int tui_get_terminal_rows(void) {
     return ws.ws_row;
 }
 
-// Read a single byte from TTY (non-blocking in raw mode)
+// Read a single byte from tty (non-blocking in raw mode)
 // Returns -1 if no data available, or the byte value (0-255)
 int tui_read_byte(void) {
     int fd = get_tty_fd();
@@ -137,10 +146,10 @@ void tui_flush(void) {
     fflush(stdout);
 }
 
-// Check if TTY is available (either stdin or /dev/tty)
+// Check if a TTY is available for input (stdin or /dev/tty)
 int tui_is_tty(void) {
     if (isatty(STDIN_FILENO)) return 1;
-    // Try to open /dev/tty
+    // Check if /dev/tty is available
     int fd = open("/dev/tty", O_RDONLY);
     if (fd >= 0) {
         close(fd);
