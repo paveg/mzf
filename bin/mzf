@@ -1,2 +1,19 @@
 #!/usr/bin/env node
-require('../mzf.js');
+const path = require('path');
+const fs = require('fs');
+
+// Try npm package location first, then local build
+const locations = [
+  path.join(__dirname, '..', 'mzf.js'),  // npm package
+  path.join(__dirname, '..', '_build', 'js', 'release', 'build', 'main', 'main.js')  // local build
+];
+
+for (const loc of locations) {
+  if (fs.existsSync(loc)) {
+    require(loc);
+    process.exit(0);
+  }
+}
+
+console.error('Error: mzf.js not found. Run "make js" to build.');
+process.exit(1);
