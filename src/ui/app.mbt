@@ -698,7 +698,9 @@ fn string_width(s : String) -> Int {
 
 ///|
 /// Get border characters based on style
-fn get_border_chars(style : String) -> (String, String, String, String, String, String) {
+fn get_border_chars(
+  style : String,
+) -> (String, String, String, String, String, String) {
   // Returns (top_left, top_right, bottom_left, bottom_right, horizontal, vertical)
   match style {
     "rounded" => ("╭", "╮", "╰", "╯", "─", "│")
@@ -726,12 +728,107 @@ fn App::render_info(self : App, buf : StringBuilder) -> Unit {
 }
 
 ///|
+/// Render prompt line with optional inline info
+fn App::render_prompt_line(self : App, buf : StringBuilder) -> Unit {
+  buf.write_string(ansi_yellow)
+  buf.write_string(self.prompt)
+  buf.write_string(ansi_reset)
+  buf.write_string(self.query)
+  buf.write_string("_")
+  // Add inline info after cursor if enabled
+  if self.info == "inline" {
+    buf.write_string(" ")
+    self.render_info(buf)
+  }
+}
+
+///|
+/// Render separator line (optionally with border style)
+fn App::render_separator(self : App, buf : StringBuilder) -> Unit {
+  let (_, _, _, _, h_char, _) = get_border_chars(self.border)
+  let sep_char = if h_char.length() > 0 { h_char } else { "─" }
+  buf.write_string(ansi_dim)
+  for i = 0; i < self.width - 1; i = i + 1 {
+    ignore(i)
+    buf.write_string(sep_char)
+  }
+  buf.write_string(ansi_reset)
+}
+
+///|
+/// Render top border line
+fn App::render_top_border(self : App, buf : StringBuilder) -> Unit {
+  if self.border == "none" {
+    return
+  }
+  let (tl, tr, _, _, h_char, _) = get_border_chars(self.border)
+  buf.write_string(ansi_dim)
+  if self.border == "horizontal" {
+    for i = 0; i < self.width - 1; i = i + 1 {
+      ignore(i)
+      buf.write_string(h_char)
+    }
+  } else {
+    // rounded or sharp
+    buf.write_string(tl)
+    for i = 0; i < self.width - 3; i = i + 1 {
+      ignore(i)
+      buf.write_string(h_char)
+    }
+    buf.write_string(tr)
+  }
+  buf.write_string(ansi_reset)
+  buf.write_string("\r\n")
+}
+
+///|
+/// Render bottom border line
+fn App::render_bottom_border(self : App, buf : StringBuilder) -> Unit {
+  if self.border == "none" {
+    return
+  }
+  let (_, _, bl, br, h_char, _) = get_border_chars(self.border)
+  buf.write_string(ansi_dim)
+  if self.border == "horizontal" {
+    for i = 0; i < self.width - 1; i = i + 1 {
+      ignore(i)
+      buf.write_string(h_char)
+    }
+  } else {
+    // rounded or sharp
+    buf.write_string(bl)
+    for i = 0; i < self.width - 3; i = i + 1 {
+      ignore(i)
+      buf.write_string(h_char)
+    }
+    buf.write_string(br)
+  }
+  buf.write_string(ansi_reset)
+}
+
+///|
+/// Check if layout should show prompt at bottom
+fn App::is_prompt_at_bottom(self : App) -> Bool {
+  self.layout == "reverse" || self.reverse
+}
+
+///|
+/// Check if items should be rendered in reverse display order
+fn App::is_items_reversed(self : App) -> Bool {
+  self.layout == "reverse" || self.layout == "reverse-list" || self.reverse
+}
+
+///|
 /// Render the UI
 pub fn App::render(self : App) -> String {
   let buf = StringBuilder::new()
   // Reserve lines for prompt, status, and header if present
   let header_lines = if self.header.length() > 0 { 1 } else { 0 }
-  let max_visible = self.height - 3 - header_lines
+  // Adjust for info line (not needed when inline or hidden)
+  let info_lines = if self.info == "default" { 1 } else { 0 }
+  // Adjust for border lines
+  let border_lines = if self.border != "none" { 2 } else { 0 }
+  let max_visible = self.height - 2 - header_lines - info_lines - border_lines
 
   // Hide cursor and move to top
   buf.write_string("\u001b[?25l") // Hide cursor
@@ -742,10 +839,15 @@ pub fn App::render(self : App) -> String {
   } else {
     self.filtered.length()
   }
-  if self.reverse {
-    // Reverse mode: status at top, items bottom-to-top, prompt at bottom
-    // Status line (if not hidden)
-    if self.info != "hidden" {
+  let prompt_at_bottom = self.is_prompt_at_bottom()
+  let items_reversed = self.is_items_reversed()
+  if prompt_at_bottom {
+    // Reverse layout: status at top, items bottom-to-top, prompt at bottom
+    // Top border
+    self.render_top_border(buf)
+
+    // Status line (if default - not inline or hidden)
+    if self.info == "default" {
       self.render_info(buf)
       buf.write_string("\r\n")
     }
@@ -764,29 +866,31 @@ pub fn App::render(self : App) -> String {
       buf.write_string("\r\n")
     }
 
-    // Render items in reverse order (last item first)
-    for i = visible_count - 1; i >= 0; i = i - 1 {
-      self.render_item(buf, i)
+    // Render items (reversed order: last item first for bottom-up display)
+    if items_reversed {
+      for i = visible_count - 1; i >= 0; i = i - 1 {
+        self.render_item(buf, i)
+      }
+    } else {
+      for i = 0; i < visible_count; i = i + 1 {
+        self.render_item(buf, i)
+      }
     }
 
     // Separator
-    buf.write_string(ansi_dim)
-    for i = 0; i < self.width - 1; i = i + 1 {
-      ignore(i)
-      buf.write_string("─")
-    }
-    buf.write_string(ansi_reset)
+    self.render_separator(buf)
     buf.write_string("\r\n")
 
     // Render prompt line at bottom
-    buf.write_string(ansi_yellow)
-    buf.write_string(self.prompt)
-    buf.write_string(ansi_reset)
-    buf.write_string(self.query)
-    buf.write_string("_")
+    self.render_prompt_line(buf)
+    buf.write_string("\r\n")
+
+    // Bottom border
+    self.render_bottom_border(buf)
 
     // Show cursor at query position (bottom line in reverse mode)
-    let cursor_row = self.height
+    let border_offset = if self.border != "none" { 1 } else { 0 }
+    let cursor_row = self.height - border_offset
     let cursor_col = string_width(self.prompt) + 1 + self.query.length()
     buf.write_string("\u001b[")
     buf.write_string(cursor_row.to_string())
@@ -795,21 +899,16 @@ pub fn App::render(self : App) -> String {
     buf.write_string("H")
     buf.write_string("\u001b[?25h") // Show cursor
   } else {
-    // Normal mode: prompt at top, items top-to-bottom, status at bottom
+    // Default layout: prompt at top, items top-to-bottom, status at bottom
+    // Top border
+    self.render_top_border(buf)
+
     // Render prompt line
-    buf.write_string(ansi_yellow)
-    buf.write_string(self.prompt)
-    buf.write_string(ansi_reset)
-    buf.write_string(self.query)
-    buf.write_string("_\r\n")
+    self.render_prompt_line(buf)
+    buf.write_string("\r\n")
 
     // Separator
-    buf.write_string(ansi_dim)
-    for i = 0; i < self.width - 1; i = i + 1 {
-      ignore(i)
-      buf.write_string("─")
-    }
-    buf.write_string(ansi_reset)
+    self.render_separator(buf)
     buf.write_string("\r\n")
 
     // Header (if present)
@@ -820,9 +919,15 @@ pub fn App::render(self : App) -> String {
       buf.write_string("\r\n")
     }
 
-    // Render items
-    for i = 0; i < visible_count; i = i + 1 {
-      self.render_item(buf, i)
+    // Render items (possibly in reverse order for reverse-list)
+    if items_reversed {
+      for i = visible_count - 1; i >= 0; i = i - 1 {
+        self.render_item(buf, i)
+      }
+    } else {
+      for i = 0; i < visible_count; i = i + 1 {
+        self.render_item(buf, i)
+      }
     }
 
     // Fill remaining lines
@@ -831,13 +936,18 @@ pub fn App::render(self : App) -> String {
       buf.write_string("\r\n")
     }
 
-    // Status line (if not hidden)
-    if self.info != "hidden" {
+    // Status line (if default - not inline or hidden)
+    if self.info == "default" {
       self.render_info(buf)
+      buf.write_string("\r\n")
     }
 
+    // Bottom border
+    self.render_bottom_border(buf)
+
     // Show cursor at query position
-    let cursor_row = 1
+    let border_offset = if self.border != "none" { 1 } else { 0 }
+    let cursor_row = 1 + border_offset
     let cursor_col = string_width(self.prompt) + 1 + self.query.length()
     buf.write_string("\u001b[")
     buf.write_string(cursor_row.to_string())
