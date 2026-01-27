@@ -15,61 +15,6 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 - Stdin pipe support (both native and JS builds)
 - Lightweight: ~541KB native binary, ~228KB JS
 
-### fzf Compatibility
-
-| Category | Option | fzf | mzf | Notes |
-|----------|--------|:---:|:---:|-------|
-| **Search** | `-x, --extended` | ✅ | ❌ | Extended search syntax (`^`, `$`, `'`, `!`) |
-| | `-e, --exact` | ✅ | ✅ | |
-| | `-i, --ignore-case` | ✅ | ✅ | |
-| | `+i` (case-sensitive) | ✅ | ❌ | |
-| | `--literal` | ✅ | ❌ | |
-| | `--algo` | ✅ | ❌ | |
-| | `-n, --nth` | ✅ | ✅ | |
-| | `--with-nth` | ✅ | ✅ | |
-| | `-d, --delimiter` | ✅ | ✅ | |
-| | `--disabled` | ✅ | ❌ | |
-| **Interface** | `-m, --multi` | ✅ | ✅ | |
-| | `--bind` | ✅ | ❌ | Custom key bindings |
-| | `--cycle` | ✅ | ✅ | |
-| | `--wrap` | ✅ | ❌ | |
-| | `--no-mouse` | ✅ | - | mzf has no mouse support |
-| **Layout** | `--height` | ✅ | ✅ | mzf: lines only (no %) |
-| | `--layout` | ✅ | ✅ | |
-| | `--reverse` | ✅ | ✅ | |
-| | `--border` | ✅ | ✅ | mzf: none/rounded/sharp/horizontal |
-| | `--border-label` | ✅ | ❌ | |
-| | `--margin` | ✅ | ❌ | |
-| | `--padding` | ✅ | ❌ | |
-| | `--info` | ✅ | ✅ | |
-| | `--prompt` | ✅ | ✅ | |
-| | `--pointer` | ✅ | ✅ | |
-| | `--marker` | ✅ | ✅ | |
-| | `--header` | ✅ | ✅ | |
-| | `--header-lines` | ✅ | ❌ | |
-| **Display** | `--ansi` | ✅ | ✅ | |
-| | `--color` | ✅ | ✅ | mzf: subset of color options |
-| | `--tabstop` | ✅ | ❌ | |
-| | `--highlight-line` | ✅ | ❌ | |
-| **History** | `--history` | ✅ | ✅ | |
-| | `--history-size` | ✅ | ✅ | |
-| **Preview** | `--preview` | ✅ | ❌ | Preview pane |
-| | `--preview-window` | ✅ | ❌ | |
-| **Output** | `-q, --query` | ✅ | ✅ | |
-| | `-1, --select-1` | ✅ | ✅ | |
-| | `-0, --exit-0` | ✅ | ✅ | |
-| | `-f, --filter` | ✅ | ✅ | |
-| | `--print-query` | ✅ | ✅ | |
-| | `--expect` | ✅ | ✅ | |
-| | `--read0` | ✅ | ✅ | |
-| | `--print0` | ✅ | ✅ | |
-| **Behavior** | `--no-sort` | ✅ | ✅ | |
-| | `--tac` | ✅ | ✅ | |
-| | `--sync` | ✅ | ❌ | |
-| | `--listen` | ✅ | ❌ | |
-| **Integration** | `--tmux` | ✅ | ❌ | |
-| | Shell completions | ✅ | ❌ | bash/zsh/fish |
-
 ## Comparison
 
 | Tool | Language | Binary Size | Features |
@@ -217,6 +162,61 @@ make js
 # Run tests
 make test
 ```
+
+## fzf Compatibility
+
+| Category | Option | fzf | mzf | Notes |
+|----------|--------|:---:|:---:|-------|
+| **Search** | `-x, --extended` | ✅ | ❌ | Extended search syntax (`^`, `$`, `'`, `!`) |
+| | `-e, --exact` | ✅ | ✅ | |
+| | `-i, --ignore-case` | ✅ | ✅ | |
+| | `+i` (case-sensitive) | ✅ | ❌ | |
+| | `--literal` | ✅ | ❌ | |
+| | `--algo` | ✅ | ❌ | |
+| | `-n, --nth` | ✅ | ✅ | |
+| | `--with-nth` | ✅ | ✅ | |
+| | `-d, --delimiter` | ✅ | ✅ | |
+| | `--disabled` | ✅ | ❌ | |
+| **Interface** | `-m, --multi` | ✅ | ✅ | |
+| | `--bind` | ✅ | ❌ | Custom key bindings |
+| | `--cycle` | ✅ | ✅ | |
+| | `--wrap` | ✅ | ❌ | |
+| | `--no-mouse` | ✅ | - | mzf has no mouse support |
+| **Layout** | `--height` | ✅ | ✅ | mzf: lines only (no %) |
+| | `--layout` | ✅ | ✅ | |
+| | `--reverse` | ✅ | ✅ | |
+| | `--border` | ✅ | ✅ | mzf: none/rounded/sharp/horizontal |
+| | `--border-label` | ✅ | ❌ | |
+| | `--margin` | ✅ | ❌ | |
+| | `--padding` | ✅ | ❌ | |
+| | `--info` | ✅ | ✅ | |
+| | `--prompt` | ✅ | ✅ | |
+| | `--pointer` | ✅ | ✅ | |
+| | `--marker` | ✅ | ✅ | |
+| | `--header` | ✅ | ✅ | |
+| | `--header-lines` | ✅ | ❌ | |
+| **Display** | `--ansi` | ✅ | ✅ | |
+| | `--color` | ✅ | ✅ | mzf: subset of color options |
+| | `--tabstop` | ✅ | ❌ | |
+| | `--highlight-line` | ✅ | ❌ | |
+| **History** | `--history` | ✅ | ✅ | |
+| | `--history-size` | ✅ | ✅ | |
+| **Preview** | `--preview` | ✅ | ❌ | Preview pane |
+| | `--preview-window` | ✅ | ❌ | |
+| **Output** | `-q, --query` | ✅ | ✅ | |
+| | `-1, --select-1` | ✅ | ✅ | |
+| | `-0, --exit-0` | ✅ | ✅ | |
+| | `-f, --filter` | ✅ | ✅ | |
+| | `--print-query` | ✅ | ✅ | |
+| | `--expect` | ✅ | ✅ | |
+| | `--read0` | ✅ | ✅ | |
+| | `--print0` | ✅ | ✅ | |
+| **Behavior** | `--no-sort` | ✅ | ✅ | |
+| | `--tac` | ✅ | ✅ | |
+| | `--sync` | ✅ | ❌ | |
+| | `--listen` | ✅ | ❌ | |
+| **Integration** | `--tmux` | ✅ | ❌ | |
+| | Shell completions | ✅ | ❌ | bash/zsh/fish |
 
 ## License
 
