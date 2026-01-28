@@ -1,39 +1,4 @@
 ///|
-/// Count the number of lines in a string (split by newlines)
-fn count_lines(text : String) -> Int {
-  if text.length() == 0 {
-    return 0
-  }
-  let mut count = 1
-  for c in text {
-    if c == '\n' {
-      count = count + 1
-    }
-  }
-  count
-}
-
-///|
-/// Split string by delimiter
-fn split_by_delimiter(text : String, delimiter : String) -> Array[String] {
-  let fields : Array[String] = []
-  let delim_char = delimiter.iter().collect()[0] // Assume single char delimiter
-  let chars : Array[Char] = text.iter().collect()
-  let buf = StringBuilder::new()
-  for i = 0; i < chars.length(); i = i + 1 {
-    if chars[i] == delim_char {
-      fields.push(buf.to_string())
-      buf.reset()
-    } else {
-      buf.write_char(chars[i])
-    }
-  }
-  // Add last field
-  fields.push(buf.to_string())
-  fields
-}
-
-///|
 /// Parse nth indices (e.g., "1,2,3" or "-1")
 fn parse_nth_indices(nth : String) -> Array[Int] {
   let indices : Array[Int] = []
@@ -106,10 +71,11 @@ fn filter_with_nth(
   no_sort : Bool,
 ) -> Array[@core.MatchResult] {
   let indices = parse_nth_indices(nth)
+  let delim_char = delimiter.iter().collect()[0]
   let results : Array[@core.MatchResult] = []
   for i = 0; i < items.length(); i = i + 1 {
     let item = items[i]
-    let fields = split_by_delimiter(item.text, delimiter)
+    let fields = @core.split_by_char(item.text, delim_char)
     let match_text = extract_fields(fields, indices)
     match @core.fuzzy_match(pattern, match_text) {
       Some((score, positions)) =>
@@ -271,33 +237,13 @@ fn App::is_expected_key(self : App, key_name : String) -> Bool {
     return false
   }
   // Split expect string by comma and check each
-  let expected_keys = split_by_comma(self.expect)
+  let expected_keys = @core.split_by_comma(self.expect)
   for expected in expected_keys {
     if expected == key_name {
       return true
     }
   }
   false
-}
-
-///|
-/// Split string by comma
-fn split_by_comma(s : String) -> Array[String] {
-  let result : Array[String] = []
-  let chars : Array[Char] = s.iter().collect()
-  let buf = StringBuilder::new()
-  for i = 0; i < chars.length(); i = i + 1 {
-    if chars[i] == ',' {
-      result.push(buf.to_string())
-      buf.reset()
-    } else {
-      buf.write_char(chars[i])
-    }
-  }
-  if buf.to_string().length() > 0 {
-    result.push(buf.to_string())
-  }
-  result
 }
 
 ///|
@@ -443,7 +389,7 @@ fn App::select_down(self : App) -> Unit {
 ///|
 /// Calculate the number of visible items (page size)
 fn App::get_page_size(self : App) -> Int {
-  let header_lines = count_lines(self.header)
+  let header_lines = @core.count_lines(self.header)
   let info_lines = if self.info == "default" { 1 } else { 0 }
   let top_line = 1 // Always have top border or spacer line
   let bottom_line = if self.border != "none" { 1 } else { 0 }
@@ -757,7 +703,8 @@ fn App::render_header(self : App, buf : StringBuilder) -> Unit {
 /// Get display text for an item (applies with_nth transformation if set)
 fn App::get_display_text(self : App, text : String) -> String {
   if self.with_nth.length() > 0 && self.delimiter.length() > 0 {
-    let fields = split_by_delimiter(text, self.delimiter)
+    let delim_char = self.delimiter.iter().collect()[0]
+    let fields = @core.split_by_char(text, delim_char)
     let indices = parse_nth_indices(self.with_nth)
     extract_fields(fields, indices)
   } else {
@@ -959,7 +906,7 @@ fn App::is_items_reversed(self : App) -> Bool {
 pub fn App::render(self : App) -> String {
   let buf = StringBuilder::new()
   // Reserve lines for prompt, status, and header if present
-  let header_lines = count_lines(self.header)
+  let header_lines = @core.count_lines(self.header)
   // Adjust for info line (not needed when inline or hidden)
   let info_lines = if self.info == "default" { 1 } else { 0 }
   // Adjust for border lines (top line is always reserved now for border or spacer)
