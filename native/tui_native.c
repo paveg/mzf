@@ -18,6 +18,10 @@ static int raw_mode_enabled = 0;
 static int tty_fd = -1;
 static int tty_fd_opened = 0; // 1 if we opened /dev/tty ourselves
 
+// File descriptor for TUI output (STDOUT_FILENO or /dev/tty)
+static int tty_out_fd = -1;
+static int tty_out_fd_opened = 0; // 1 if we opened /dev/tty ourselves for output
+
 // Get the file descriptor for keyboard input
 // Falls back to /dev/tty if stdin is not a tty (e.g., when used in a pipe)
 static int get_tty_fd(void) {
@@ -34,6 +38,24 @@ static int get_tty_fd(void) {
         }
     }
     return tty_fd;
+}
+
+// Get the file descriptor for TUI output
+// Falls back to /dev/tty if stdout is not a tty (e.g., when output is captured)
+static int get_tty_out_fd(void) {
+    if (tty_out_fd >= 0) return tty_out_fd;
+
+    if (isatty(STDOUT_FILENO)) {
+        tty_out_fd = STDOUT_FILENO;
+        tty_out_fd_opened = 0;
+    } else {
+        // stdout is not a tty (output captured), use /dev/tty for UI
+        tty_out_fd = open("/dev/tty", O_WRONLY);
+        if (tty_out_fd >= 0) {
+            tty_out_fd_opened = 1;
+        }
+    }
+    return tty_out_fd;
 }
 
 // Enable raw mode for character-by-character input
@@ -75,11 +97,18 @@ int tui_disable_raw_mode(void) {
 
     if (tcsetattr(fd, TCSADRAIN, &orig_termios) == -1) return -1;
 
-    // Close /dev/tty if we opened it
+    // Close /dev/tty if we opened it for input
     if (tty_fd_opened && tty_fd >= 0) {
         close(tty_fd);
         tty_fd = -1;
         tty_fd_opened = 0;
+    }
+
+    // Close /dev/tty if we opened it for output
+    if (tty_out_fd_opened && tty_out_fd >= 0) {
+        close(tty_out_fd);
+        tty_out_fd = -1;
+        tty_out_fd_opened = 0;
     }
 
     raw_mode_enabled = 0;
@@ -131,18 +160,37 @@ int tui_read_bytes(unsigned char* buf, int max_len) {
     return (int)n;
 }
 
-// Write string to stdout without newline
+// Write string to tty (uses /dev/tty when stdout is captured)
 void tui_print_raw(const char* str, int len) {
-    write(STDOUT_FILENO, str, len);
+    int fd = get_tty_out_fd();
+    if (fd >= 0) {
+        write(fd, str, len);
+    }
 }
 
-// Write bytes to stdout without newline
+// Write bytes to tty (uses /dev/tty when stdout is captured)
 void tui_write_bytes(const unsigned char* buf, int len) {
-    write(STDOUT_FILENO, buf, len);
+    int fd = get_tty_out_fd();
+    if (fd >= 0) {
+        write(fd, buf, len);
+    }
 }
 
-// Flush stdout
+// Flush tty output
 void tui_flush(void) {
+    int fd = get_tty_out_fd();
+    if (fd >= 0 && fd != STDOUT_FILENO) {
+        // For /dev/tty, use fsync since we use write() not fwrite()
+        fsync(fd);
+    } else {
+        fflush(stdout);
+    }
+}
+
+// Write string to stdout directly (always stdout, never /dev/tty)
+// Used for final output like shell scripts and selection results
+void tui_print_stdout(const char* str, int len) {
+    write(STDOUT_FILENO, str, len);
     fflush(stdout);
 }
 

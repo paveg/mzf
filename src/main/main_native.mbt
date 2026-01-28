@@ -18,6 +18,63 @@ fn stdin_is_tty() -> Bool {
 }
 
 ///|
+/// FFI: Write string to stdout directly (always stdout, never /dev/tty)
+#borrow(buf)
+extern "c" fn tui_print_stdout_ffi(buf : FixedArray[Byte], len : Int) = "tui_print_stdout"
+
+///|
+/// Encode string to UTF-8 and return as FixedArray[Byte] with length
+fn string_to_utf8(s : String) -> (FixedArray[Byte], Int) {
+  let str_len = s.length()
+  let max_size = str_len * 4 // Max 4 bytes per code point
+  let buf = FixedArray::make(max_size, b'\x00')
+  let mut pos = 0
+  let mut i = 0
+  while i < str_len {
+    let unit = s[i].to_int()
+    // Check for surrogate pair
+    if unit >= 0xD800 && unit <= 0xDBFF && i + 1 < str_len {
+      let unit2 = s[i + 1].to_int()
+      if unit2 >= 0xDC00 && unit2 <= 0xDFFF {
+        let code = 0x10000 + ((unit - 0xD800) << 10) + (unit2 - 0xDC00)
+        // 4-byte UTF-8
+        buf[pos] = (0xF0 | (code >> 18)).to_byte()
+        buf[pos + 1] = (0x80 | ((code >> 12) & 0x3F)).to_byte()
+        buf[pos + 2] = (0x80 | ((code >> 6) & 0x3F)).to_byte()
+        buf[pos + 3] = (0x80 | (code & 0x3F)).to_byte()
+        pos = pos + 4
+        i = i + 2
+        continue
+      }
+    }
+    // Regular BMP character
+    if unit < 0x80 {
+      buf[pos] = unit.to_byte()
+      pos = pos + 1
+    } else if unit < 0x800 {
+      buf[pos] = (0xC0 | (unit >> 6)).to_byte()
+      buf[pos + 1] = (0x80 | (unit & 0x3F)).to_byte()
+      pos = pos + 2
+    } else {
+      buf[pos] = (0xE0 | (unit >> 12)).to_byte()
+      buf[pos + 1] = (0x80 | ((unit >> 6) & 0x3F)).to_byte()
+      buf[pos + 2] = (0x80 | (unit & 0x3F)).to_byte()
+      pos = pos + 3
+    }
+    i = i + 1
+  }
+  (buf, pos)
+}
+
+///|
+/// Print string to stdout directly (always stdout, never /dev/tty)
+/// Use this for shell scripts and final selection results
+fn print_stdout(s : String) -> Unit {
+  let (buf, len) = string_to_utf8(s)
+  tui_print_stdout_ffi(buf, len)
+}
+
+///|
 /// FFI: Read file contents (sync) - returns content as Bytes and length
 #borrow(path, out_len)
 extern "c" fn tui_read_file(
@@ -143,6 +200,21 @@ async fn async_main() -> Unit {
     return
   }
 
+  // Shell integration: output shell script and exit
+  // Use print_stdout to ensure output goes to stdout (not /dev/tty)
+  if opts.shell_bash {
+    print_stdout(get_bash_script())
+    return
+  }
+  if opts.shell_zsh {
+    print_stdout(get_zsh_script())
+    return
+  }
+  if opts.shell_fish {
+    print_stdout(get_fish_script())
+    return
+  }
+
   // Get terminal size
   let (width, term_height) = @io.get_terminal_size()
   // Use --height option if specified, otherwise use terminal height
@@ -217,6 +289,7 @@ async fn async_main() -> Unit {
     preview=opts.preview,
     preview_window=opts.preview_window,
     fetch_preview=exec_preview_sync,
+    inline_mode=opts.height > 0,
   )
 }
 

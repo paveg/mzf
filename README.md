@@ -15,7 +15,8 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 - Preview pane support (`--preview`)
 - Stdin pipe support (both native and JS builds)
 - Extended search mode (`-x, --extended`)
-- Lightweight: ~620KB native binary, ~305KB JS
+- Shell integration (Bash, Zsh, Fish)
+- Lightweight: ~636KB native binary, ~318KB JS
 
 ## Comparison
 
@@ -24,7 +25,7 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 | [fzf](https://github.com/junegunn/fzf) | Go | ~3.5MB | Full-featured, preview, multi-select |
 | [skim](https://github.com/lotabout/skim) | Rust | ~3.9MB | fzf-compatible, async |
 | [peco](https://github.com/peco/peco) | Go | ~4.7MB | Simple, customizable |
-| **mzf** | MoonBit | **~620KB** | fzf-compatible, preview, lightweight |
+| **mzf** | MoonBit | **~637KB** | fzf-compatible, preview, shell integration, lightweight |
 
 *mzf is ~6x smaller than alternatives while providing fzf-compatible options.*
 
@@ -192,6 +193,68 @@ mzf --help
 | `--history <FILE>` | History file path |
 | `--history-size <N>` | Maximum history size (default: 1000) |
 
+### Shell Integration
+
+| Option | Description |
+|--------|-------------|
+| `--bash` | Output bash integration script |
+| `--zsh` | Output zsh integration script |
+| `--fish` | Output fish integration script |
+
+## Shell Integration
+
+mzf provides shell integration for Bash, Zsh, and Fish with key bindings and completion.
+
+### Setup
+
+```bash
+# Bash: Add to ~/.bashrc
+eval "$(mzf --bash)"
+
+# Zsh: Add to ~/.zshrc
+source <(mzf --zsh)
+
+# Fish: Add to ~/.config/fish/config.fish
+mzf --fish | source
+```
+
+### Key Bindings
+
+| Key | Action |
+|-----|--------|
+| `Ctrl-T` | File selection (paste to command line) |
+| `Ctrl-R` | History search |
+| `Alt-C` | cd to selected directory |
+
+### Completion
+
+Type `**` followed by `Tab` to trigger fuzzy completion:
+
+```bash
+vim **<Tab>      # Fuzzy file completion
+cd **<Tab>       # Fuzzy directory completion
+```
+
+### Environment Variables
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `MZF_CTRL_T_COMMAND` | File listing command for Ctrl-T | `find . -type f` |
+| `MZF_CTRL_T_OPTS` | Options for Ctrl-T | (none) |
+| `MZF_ALT_C_COMMAND` | Directory listing command for Alt-C | `find . -type d` |
+| `MZF_ALT_C_OPTS` | Options for Alt-C | (none) |
+| `MZF_CTRL_R_OPTS` | Options for Ctrl-R (history) | (none) |
+| `MZF_COMPLETION_TRIGGER` | Completion trigger | `**` |
+| `MZF_COMPLETION_OPTS` | Options for completion | (none) |
+
+#### Example: Use fd instead of find
+
+```bash
+# In ~/.bashrc or ~/.zshrc
+export MZF_CTRL_T_COMMAND='fd --type f'
+export MZF_ALT_C_COMMAND='fd --type d'
+```
+
 ## Building
 
 ```bash
@@ -258,7 +321,7 @@ make test
 | | `--sync` | ✅ | ❌ | |
 | | `--listen` | ✅ | ❌ | |
 | **Integration** | `--tmux` | ✅ | ❌ | |
-| | Shell completions | ✅ | ❌ | bash/zsh/fish |
+| | Shell integration | ✅ | ✅ | `--bash`, `--zsh`, `--fish` |
 
 ## License
 

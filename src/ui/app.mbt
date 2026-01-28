@@ -139,6 +139,8 @@ pub struct App {
   preview_window : String // Preview window spec (right:50%, bottom:40%)
   mut preview_cache : String // Cached preview output
   mut preview_item_idx : Int // Index of item preview was generated for (-1 = none)
+  // Inline mode
+  row_offset : Int // Row offset for inline mode (0 for full screen)
 }
 
 ///|
@@ -170,6 +172,7 @@ pub fn App::new(
   color? : String = "",
   preview? : String = "",
   preview_window? : String = "right:50%",
+  row_offset? : Int = 0,
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -209,6 +212,7 @@ pub fn App::new(
     preview_window,
     preview_cache: "",
     preview_item_idx: -1,
+    row_offset,
   }
   // Apply initial filter
   app.update_filter()
@@ -1802,11 +1806,26 @@ pub fn App::render(self : App) -> String {
     let border_offset = if self.border != "none" { 1 } else { 0 }
     let cursor_row = self.height - border_offset - 1
     let cursor_col = string_width(self.prompt) + 1 + self.query.length()
-    buf.write_string("\u001b[")
-    buf.write_string(cursor_row.to_string())
-    buf.write_string(";")
-    buf.write_string(cursor_col.to_string())
-    buf.write_string("H")
+    if self.row_offset > 0 {
+      // Inline mode: use relative cursor movement
+      // After rendering, cursor is at bottom. Move up to prompt line.
+      let lines_up = self.height - cursor_row
+      if lines_up > 0 {
+        buf.write_string("\u001b[")
+        buf.write_string(lines_up.to_string())
+        buf.write_string("A") // Move up
+      }
+      buf.write_string("\u001b[")
+      buf.write_string(cursor_col.to_string())
+      buf.write_string("G") // Move to column
+    } else {
+      // Full screen mode: use absolute positioning
+      buf.write_string("\u001b[")
+      buf.write_string(cursor_row.to_string())
+      buf.write_string(";")
+      buf.write_string(cursor_col.to_string())
+      buf.write_string("H")
+    }
     buf.write_string("\u001b[?25h") // Show cursor
   } else {
     // Default layout: prompt at top, items top-to-bottom, status at bottom
@@ -1859,11 +1878,26 @@ pub fn App::render(self : App) -> String {
     // Show cursor at query position
     let cursor_row = 1
     let cursor_col = string_width(self.prompt) + 1 + self.query.length()
-    buf.write_string("\u001b[")
-    buf.write_string(cursor_row.to_string())
-    buf.write_string(";")
-    buf.write_string(cursor_col.to_string())
-    buf.write_string("H")
+    if self.row_offset > 0 {
+      // Inline mode: use relative cursor movement
+      // After rendering, cursor is at bottom. Move up to prompt line (row 1 means top).
+      let lines_up = self.height - cursor_row
+      if lines_up > 0 {
+        buf.write_string("\u001b[")
+        buf.write_string(lines_up.to_string())
+        buf.write_string("A") // Move up
+      }
+      buf.write_string("\u001b[")
+      buf.write_string(cursor_col.to_string())
+      buf.write_string("G") // Move to column
+    } else {
+      // Full screen mode: use absolute positioning
+      buf.write_string("\u001b[")
+      buf.write_string(cursor_row.to_string())
+      buf.write_string(";")
+      buf.write_string(cursor_col.to_string())
+      buf.write_string("H")
+    }
     buf.write_string("\u001b[?25h") // Show cursor
   }
   buf.to_string()
