@@ -20,6 +20,7 @@ struct CliOptions {
   nth : String // Field index for matching (-n, --nth)
   delimiter : String // Field delimiter (-d, --delimiter)
   // Search options
+  extended : Bool // Extended search mode (-x, --extended)
   exact : Bool // Exact match mode (-e, --exact)
   ignore_case : Bool // Force case insensitive (-i, --ignore-case)
   // Input/Output options
@@ -74,6 +75,7 @@ fn parse_args() -> CliOptions {
   let mut print0 = false
   let mut nth = ""
   let mut delimiter = ""
+  let mut extended = false
   let mut exact = false
   let mut ignore_case = false
   let mut read0 = false
@@ -112,6 +114,8 @@ fn parse_args() -> CliOptions {
       exit_0 = true
     } else if arg == "--print0" {
       print0 = true
+    } else if arg == "-x" || arg == "--extended" {
+      extended = true
     } else if arg == "-e" || arg == "--exact" {
       exact = true
     } else if arg == "-i" || arg == "--ignore-case" {
@@ -270,6 +274,7 @@ fn parse_args() -> CliOptions {
     print0,
     nth,
     delimiter,
+    extended,
     exact,
     ignore_case,
     read0,
@@ -310,6 +315,7 @@ fn print_help() -> Unit {
     "\n" +
     "OPTIONS:\n" +
     "  Search:\n" +
+    "    -x, --extended           Extended search mode (^, $, ', !)\n" +
     "    -q, --query <QUERY>      Start with the given query\n" +
     "    -e, --exact              Exact-match mode (substring)\n" +
     "    -i, --ignore-case        Force case-insensitive matching\n" +

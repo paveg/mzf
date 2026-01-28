@@ -38,6 +38,12 @@ fn has_uppercase(s : String) -> Bool {
 }
 
 ///|
+/// Public version of has_uppercase for external use
+pub fn has_uppercase_query(s : String) -> Bool {
+  has_uppercase(s)
+}
+
+///|
 /// Convert char to lowercase
 fn to_lower_char(c : Char) -> Char {
   if c >= 'A' && c <= 'Z' {
@@ -314,6 +320,315 @@ pub fn filter_without_sort_ignore_case(
       Some((score, positions)) =>
         results.push(MatchResult::new(item, score, positions))
       None => ()
+    }
+  }
+  results
+}
+
+///|
+/// Extended search term type
+pub enum TermType {
+  Fuzzy // default fuzzy match
+  Exact // 'exact (substring)
+  Prefix // ^prefix (starts with)
+  Suffix // suffix$ (ends with)
+  EqualExact // ^exact$ (exact full string match)
+}
+
+///|
+/// Search term with type and inversion flag
+pub struct SearchTerm {
+  pattern : String
+  term_type : TermType
+  inverse : Bool // ! negation
+}
+
+///|
+/// Parse a single search term (handles ^, $, ', ! modifiers)
+fn parse_search_term(term : String) -> SearchTerm {
+  if term.length() == 0 {
+    return { pattern: "", term_type: Fuzzy, inverse: false }
+  }
+  let chars : Array[Char] = term.iter().collect()
+  let mut start = 0
+  let mut inverse = false
+
+  // Check for negation prefix
+  if chars[0] == '!' {
+    inverse = true
+    start = 1
+  }
+  if start >= chars.length() {
+    return { pattern: "", term_type: Fuzzy, inverse }
+  }
+
+  // Check for prefix/suffix/exact modifiers
+  let has_caret = chars[start] == '^'
+  let has_dollar = chars[chars.length() - 1] == '$'
+  let has_quote = chars[start] == '\''
+  let (term_type, pattern_start, pattern_end) = if has_caret &&
+    has_dollar &&
+    chars.length() - start > 1 {
+    // ^exact$ - full string match
+    (EqualExact, start + 1, chars.length() - 1)
+  } else if has_caret {
+    // ^prefix - starts with
+    (Prefix, start + 1, chars.length())
+  } else if has_dollar && chars.length() > start + 1 {
+    // suffix$ - ends with
+    (Suffix, start, chars.length() - 1)
+  } else if has_quote {
+    // 'exact - substring exact match
+    (Exact, start + 1, chars.length())
+  } else {
+    // default fuzzy
+    (Fuzzy, start, chars.length())
+  }
+
+  // Extract pattern
+  let buf = StringBuilder::new()
+  for i = pattern_start; i < pattern_end; i = i + 1 {
+    buf.write_char(chars[i])
+  }
+  { pattern: buf.to_string(), term_type, inverse }
+}
+
+///|
+/// Parse query into search terms (space-separated = AND, | = OR groups)
+/// Returns array of OR groups, each containing AND terms
+pub fn parse_extended_query(query : String) -> Array[Array[SearchTerm]] {
+  let or_groups : Array[Array[SearchTerm]] = []
+  if query.length() == 0 {
+    return or_groups
+  }
+  let chars : Array[Char] = query.iter().collect()
+  let buf = StringBuilder::new()
+  let current_and_terms : Array[SearchTerm] = []
+  for i = 0; i < chars.length(); i = i + 1 {
+    let c = chars[i]
+    if c == '|' {
+      // End current term and start new OR group
+      let term_str = buf.to_string()
+      if term_str.length() > 0 {
+        current_and_terms.push(parse_search_term(term_str))
+      }
+      buf.reset()
+      if current_and_terms.length() > 0 {
+        // Clone the array for the OR group
+        let group : Array[SearchTerm] = []
+        for t in current_and_terms {
+          group.push(t)
+        }
+        or_groups.push(group)
+        // Clear for next group - create new array
+        current_and_terms.clear()
+      }
+    } else if c == ' ' {
+      // End current term (AND separator)
+      let term_str = buf.to_string()
+      if term_str.length() > 0 {
+        current_and_terms.push(parse_search_term(term_str))
+      }
+      buf.reset()
+    } else {
+      buf.write_char(c)
+    }
+  }
+
+  // Handle last term
+  let term_str = buf.to_string()
+  if term_str.length() > 0 {
+    current_and_terms.push(parse_search_term(term_str))
+  }
+
+  // Add last OR group
+  if current_and_terms.length() > 0 {
+    or_groups.push(current_and_terms)
+  }
+  or_groups
+}
+
+///|
+/// Check if text matches a single search term
+fn match_term(
+  term : SearchTerm,
+  text : String,
+  case_sensitive : Bool,
+) -> (Bool, Array[Int]) {
+  if term.pattern.length() == 0 {
+    return (not(term.inverse), [])
+  }
+  let pattern_chars : Array[Char] = term.pattern.iter().collect()
+  let text_chars : Array[Char] = text.iter().collect()
+  let (matched, positions) : (Bool, Array[Int]) = match term.term_type {
+    Fuzzy => {
+      // Use existing fuzzy match logic
+      let result = if case_sensitive {
+        fuzzy_match(term.pattern, text)
+      } else {
+        fuzzy_match_ignore_case(term.pattern, text)
+      }
+      match result {
+        Some((_, pos)) => (true, pos)
+        None => (false, [])
+      }
+    }
+    Exact =>
+      // Substring exact match
+      match exact_match(term.pattern, text, not(case_sensitive)) {
+        Some((_, pos)) => (true, pos)
+        None => (false, [])
+      }
+    Prefix =>
+      // Starts with
+      if text_chars.length() < pattern_chars.length() {
+        (false, [])
+      } else {
+        let mut ok = true
+        let positions : Array[Int] = []
+        for i = 0; i < pattern_chars.length(); i = i + 1 {
+          if not(chars_match(pattern_chars[i], text_chars[i], case_sensitive)) {
+            ok = false
+            break
+          }
+          positions.push(i)
+        }
+        (ok, positions)
+      }
+    Suffix =>
+      // Ends with
+      if text_chars.length() < pattern_chars.length() {
+        (false, [])
+      } else {
+        let start = text_chars.length() - pattern_chars.length()
+        let mut ok = true
+        let positions : Array[Int] = []
+        for i = 0; i < pattern_chars.length(); i = i + 1 {
+          if not(
+              chars_match(
+                pattern_chars[i],
+                text_chars[start + i],
+                case_sensitive,
+              ),
+            ) {
+            ok = false
+            break
+          }
+          positions.push(start + i)
+        }
+        (ok, positions)
+      }
+    EqualExact =>
+      // Full string exact match
+      if text_chars.length() != pattern_chars.length() {
+        (false, [])
+      } else {
+        let mut ok = true
+        let positions : Array[Int] = []
+        for i = 0; i < pattern_chars.length(); i = i + 1 {
+          if not(chars_match(pattern_chars[i], text_chars[i], case_sensitive)) {
+            ok = false
+            break
+          }
+          positions.push(i)
+        }
+        (ok, positions)
+      }
+  }
+
+  // Apply inverse if needed
+  if term.inverse {
+    (not(matched), []) // No positions for inverse matches
+  } else {
+    (matched, positions)
+  }
+}
+
+///|
+/// Match text against extended query (OR of AND groups)
+/// Returns (matched, score, positions)
+pub fn extended_match(
+  query : String,
+  text : String,
+  case_sensitive : Bool,
+) -> (Bool, Int, Array[Int])? {
+  let or_groups = parse_extended_query(query)
+  if or_groups.length() == 0 {
+    return Some((true, 0, []))
+  }
+
+  // Try each OR group - need any one to match
+  for group in or_groups {
+    let mut all_matched = true
+    let mut total_score = 0
+    let all_positions : Array[Int] = []
+
+    // All terms in the group must match (AND logic)
+    for term in group {
+      let (matched, positions) = match_term(term, text, case_sensitive)
+      if not(matched) {
+        all_matched = false
+        break
+      }
+      // Accumulate positions (avoid duplicates)
+      for pos in positions {
+        let mut found = false
+        for existing in all_positions {
+          if existing == pos {
+            found = true
+            break
+          }
+        }
+        if not(found) {
+          all_positions.push(pos)
+        }
+      }
+      total_score = total_score + positions.length() * score_match
+    }
+    if all_matched {
+      // Sort positions
+      all_positions.sort_by(fn(a, b) { a - b })
+      return Some((true, total_score, all_positions))
+    }
+  }
+  None
+}
+
+///|
+/// Filter with extended search syntax
+pub fn filter_extended(
+  query : String,
+  items : Array[Item],
+  case_sensitive : Bool,
+) -> Array[MatchResult] {
+  let results : Array[MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    match extended_match(query, item.text, case_sensitive) {
+      Some((true, score, positions)) =>
+        results.push(MatchResult::new(item, score, positions))
+      _ => ()
+    }
+  }
+  // Sort by score (descending)
+  results.sort_by(fn(a, b) { b.score - a.score })
+  results
+}
+
+///|
+/// Filter with extended search without sorting
+pub fn filter_extended_no_sort(
+  query : String,
+  items : Array[Item],
+  case_sensitive : Bool,
+) -> Array[MatchResult] {
+  let results : Array[MatchResult] = []
+  for i = 0; i < items.length(); i = i + 1 {
+    let item = items[i]
+    match extended_match(query, item.text, case_sensitive) {
+      Some((true, score, positions)) =>
+        results.push(MatchResult::new(item, score, positions))
+      _ => ()
     }
   }
   results

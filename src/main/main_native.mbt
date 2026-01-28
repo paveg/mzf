@@ -60,6 +60,7 @@ fn stdin_is_tty() -> Bool {
 
 ///|
 /// FFI: Read file contents (sync) - returns content as Bytes and length
+#borrow(path, out_len)
 extern "c" fn tui_read_file(
   path : Bytes,
   path_len : Int,
@@ -68,6 +69,7 @@ extern "c" fn tui_read_file(
 
 ///|
 /// FFI: Write file contents (sync)
+#borrow(path, content)
 extern "c" fn tui_write_file(
   path : Bytes,
   path_len : Int,
@@ -222,7 +224,18 @@ async fn async_main() -> Unit {
   // Handle --filter: non-interactive filter mode
   if opts.filter.length() > 0 {
     // Filter items using the pattern
-    let filtered = if opts.exact {
+    let case_sensitive = if opts.ignore_case {
+      false
+    } else {
+      @core.has_uppercase_query(opts.filter)
+    }
+    let filtered = if opts.extended {
+      if opts.no_sort {
+        @core.filter_extended_no_sort(opts.filter, items, case_sensitive)
+      } else {
+        @core.filter_extended(opts.filter, items, case_sensitive)
+      }
+    } else if opts.exact {
       if opts.no_sort {
         @core.filter_exact_no_sort(opts.filter, items, opts.ignore_case)
       } else {
@@ -278,6 +291,7 @@ async fn async_main() -> Unit {
     select_1=opts.select_1,
     exit_0=opts.exit_0,
     print0=opts.print0,
+    extended=opts.extended,
     exact=opts.exact,
     ignore_case=opts.ignore_case,
     header=opts.header,

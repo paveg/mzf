@@ -133,6 +133,7 @@ pub struct App {
   nth : String // Field indices for matching
   delimiter : String // Field delimiter
   // Search options
+  extended : Bool // Extended search mode
   exact : Bool // Exact match mode
   ignore_case : Bool // Force case insensitive
   // Display options
@@ -169,6 +170,7 @@ pub fn App::new(
   no_sort? : Bool = false,
   nth? : String = "",
   delimiter? : String = "",
+  extended? : Bool = false,
   exact? : Bool = false,
   ignore_case? : Bool = false,
   header? : String = "",
@@ -200,6 +202,7 @@ pub fn App::new(
     no_sort,
     nth,
     delimiter,
+    extended,
     exact,
     ignore_case,
     header,
@@ -337,6 +340,12 @@ fn App::update_filter(self : App) -> Unit {
   } else {
     self.items
   }
+  // Determine case sensitivity (smart case: sensitive if query has uppercase)
+  let case_sensitive = if self.ignore_case {
+    false
+  } else {
+    @core.has_uppercase_query(self.query)
+  }
   let results = if self.query.length() == 0 {
     // Show all items when query is empty
     match_items.mapi(fn(_i, item) { @core.MatchResult::new(item, 0, []) })
@@ -349,6 +358,13 @@ fn App::update_filter(self : App) -> Unit {
       self.delimiter,
       self.no_sort,
     )
+  } else if self.extended {
+    // Extended search mode (^, $, ', !)
+    if self.no_sort {
+      @core.filter_extended_no_sort(self.query, match_items, case_sensitive)
+    } else {
+      @core.filter_extended(self.query, match_items, case_sensitive)
+    }
   } else if self.exact {
     // Exact substring matching
     if self.no_sort {

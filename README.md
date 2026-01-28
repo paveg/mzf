@@ -13,7 +13,8 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 - ANSI color support (`--ansi`)
 - History support (`--history`)
 - Stdin pipe support (both native and JS builds)
-- Lightweight: ~541KB native binary, ~228KB JS
+- Extended search mode (`-x, --extended`)
+- Lightweight: ~549KB native binary, ~249KB JS
 
 ## Comparison
 
@@ -22,7 +23,7 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 | [fzf](https://github.com/junegunn/fzf) | Go | ~3.5MB | Full-featured, preview, multi-select |
 | [skim](https://github.com/lotabout/skim) | Rust | ~3.9MB | fzf-compatible, async |
 | [peco](https://github.com/peco/peco) | Go | ~4.7MB | Simple, customizable |
-| **mzf** | MoonBit | **~541KB** | fzf-compatible, lightweight |
+| **mzf** | MoonBit | **~549KB** | fzf-compatible, lightweight |
 
 *mzf is ~6x smaller than alternatives while providing fzf-compatible options.*
 
@@ -104,11 +105,25 @@ mzf --help
 
 | Option | Description |
 |--------|-------------|
+| `-x, --extended` | Extended search mode (see below) |
 | `-q, --query <QUERY>` | Start with the given query |
 | `-e, --exact` | Exact-match mode (substring) |
 | `-i, --ignore-case` | Force case-insensitive matching |
 | `-n, --nth <N[,M,...]>` | Match only in specified fields |
 | `-d, --delimiter <STR>` | Field delimiter |
+
+#### Extended Search Mode (`-x`)
+
+| Token | Match type | Description |
+|-------|-----------|-------------|
+| `term` | fuzzy | Default fuzzy match |
+| `^term` | prefix | Starts with `term` |
+| `term$` | suffix | Ends with `term` |
+| `'term` | exact | Exact substring match |
+| `!term` | inverse | Exclude items matching `term` |
+| `!^term` | inverse prefix | Exclude items starting with `term` |
+| `term1 term2` | AND | Both terms must match |
+| `term1 \| term2` | OR | Either term matches |
 
 ### Display
 
@@ -167,7 +182,7 @@ make test
 
 | Category | Option | fzf | mzf | Notes |
 |----------|--------|:---:|:---:|-------|
-| **Search** | `-x, --extended` | ✅ | ❌ | Extended search syntax (`^`, `$`, `'`, `!`) |
+| **Search** | `-x, --extended` | ✅ | ✅ | Extended search syntax (`^`, `$`, `'`, `!`) |
 | | `-e, --exact` | ✅ | ✅ | |
 | | `-i, --ignore-case` | ✅ | ✅ | |
 | | `+i` (case-sensitive) | ✅ | ❌ | |
