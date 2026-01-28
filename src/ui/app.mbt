@@ -1,4 +1,19 @@
 ///|
+/// Count the number of lines in a string (split by newlines)
+fn count_lines(text : String) -> Int {
+  if text.length() == 0 {
+    return 0
+  }
+  let mut count = 1
+  for c in text {
+    if c == '\n' {
+      count = count + 1
+    }
+  }
+  count
+}
+
+///|
 /// Split string by delimiter
 fn split_by_delimiter(text : String, delimiter : String) -> Array[String] {
   let fields : Array[String] = []
@@ -426,6 +441,63 @@ fn App::select_down(self : App) -> Unit {
 }
 
 ///|
+/// Calculate the number of visible items (page size)
+fn App::get_page_size(self : App) -> Int {
+  let header_lines = count_lines(self.header)
+  let info_lines = if self.info == "default" { 1 } else { 0 }
+  let top_line = 1 // Always have top border or spacer line
+  let bottom_line = if self.border != "none" { 1 } else { 0 }
+  let page_size = self.height -
+    2 -
+    header_lines -
+    info_lines -
+    top_line -
+    bottom_line
+  if page_size < 1 {
+    1
+  } else {
+    page_size
+  }
+}
+
+///|
+/// Move selection up by one page
+fn App::select_page_up(self : App) -> Unit {
+  let page_size = self.get_page_size()
+  let new_idx = self.selected_idx - page_size
+  if new_idx >= 0 {
+    self.selected_idx = new_idx
+  } else if self.cycle && self.filtered.length() > 0 {
+    // Wrap to near bottom
+    let target = self.filtered.length() - 1 + new_idx + 1
+    self.selected_idx = if target >= 0 { target } else { 0 }
+  } else {
+    self.selected_idx = 0
+  }
+}
+
+///|
+/// Move selection down by one page
+fn App::select_page_down(self : App) -> Unit {
+  let page_size = self.get_page_size()
+  let max_idx = self.filtered.length() - 1
+  let new_idx = self.selected_idx + page_size
+  if new_idx <= max_idx {
+    self.selected_idx = new_idx
+  } else if self.cycle && self.filtered.length() > 0 {
+    // Wrap to near top
+    let overflow = new_idx - max_idx - 1
+    self.selected_idx = if overflow < self.filtered.length() {
+      overflow
+    } else {
+      max_idx
+    }
+  } else {
+    self.selected_idx = max_idx
+  }
+}
+
+///|
 /// Toggle mark on current item (only works when multi-select is enabled)
 fn App::toggle_mark(self : App) -> Unit {
   // Multi-select must be enabled with -m flag
@@ -610,6 +682,10 @@ pub fn App::handle_key(self : App, event : @events.InputEvent) -> Unit {
         @events.KeyEvent::Special(@events.SpecialKey::Up, _) => self.select_up()
         @events.KeyEvent::Special(@events.SpecialKey::Down, _) =>
           self.select_down()
+        @events.KeyEvent::Special(@events.SpecialKey::PageUp, _) =>
+          self.select_page_up()
+        @events.KeyEvent::Special(@events.SpecialKey::PageDown, _) =>
+          self.select_page_down()
         @events.KeyEvent::Special(@events.SpecialKey::Tab, _) =>
           self.toggle_mark()
         @events.KeyEvent::Special(@events.SpecialKey::Backspace, _) =>
@@ -641,6 +717,36 @@ pub fn App::handle_key(self : App, event : @events.InputEvent) -> Unit {
       }
     }
     _ => ()
+  }
+}
+
+///|
+/// Render header lines (handles multi-line headers properly)
+fn App::render_header(self : App, buf : StringBuilder) -> Unit {
+  if self.header.length() == 0 {
+    return
+  }
+  let header_chars : Array[Char] = self.header.iter().collect()
+  let line_buf = StringBuilder::new()
+  for i = 0; i < header_chars.length(); i = i + 1 {
+    if header_chars[i] == '\n' {
+      // Output the accumulated line
+      buf.write_string(self.colors.header)
+      buf.write_string(line_buf.to_string())
+      buf.write_string(ansi_reset)
+      buf.write_string("\u001b[K\r\n") // Clear to end of line
+      line_buf.reset()
+    } else if header_chars[i] != '\r' {
+      line_buf.write_char(header_chars[i])
+    }
+  }
+  // Output last line if any
+  let last_line = line_buf.to_string()
+  if last_line.length() > 0 {
+    buf.write_string(self.colors.header)
+    buf.write_string(last_line)
+    buf.write_string(ansi_reset)
+    buf.write_string("\u001b[K\r\n")
   }
 }
 
@@ -853,7 +959,7 @@ fn App::is_items_reversed(self : App) -> Bool {
 pub fn App::render(self : App) -> String {
   let buf = StringBuilder::new()
   // Reserve lines for prompt, status, and header if present
-  let header_lines = if self.header.length() > 0 { 1 } else { 0 }
+  let header_lines = count_lines(self.header)
   // Adjust for info line (not needed when inline or hidden)
   let info_lines = if self.info == "default" { 1 } else { 0 }
   // Adjust for border lines (top line is always reserved now for border or spacer)
@@ -894,12 +1000,7 @@ pub fn App::render(self : App) -> String {
     }
 
     // Header (if present)
-    if self.header.length() > 0 {
-      buf.write_string(self.colors.header)
-      buf.write_string(self.header)
-      buf.write_string(ansi_reset)
-      buf.write_string("\r\n")
-    }
+    self.render_header(buf)
 
     // Fill empty lines first (clear each line to remove old content)
     for j = visible_count; j < max_visible; j = j + 1 {
@@ -932,7 +1033,7 @@ pub fn App::render(self : App) -> String {
 
     // Show cursor at query position (bottom line in reverse mode)
     let border_offset = if self.border != "none" { 1 } else { 0 }
-    let cursor_row = self.height - border_offset
+    let cursor_row = self.height - border_offset - 1
     let cursor_col = string_width(self.prompt) + 1 + self.query.length()
     buf.write_string("\u001b[")
     buf.write_string(cursor_row.to_string())
@@ -959,12 +1060,7 @@ pub fn App::render(self : App) -> String {
     buf.write_string("\r\n")
 
     // Header (if present)
-    if self.header.length() > 0 {
-      buf.write_string(self.colors.header)
-      buf.write_string(self.header)
-      buf.write_string(ansi_reset)
-      buf.write_string("\r\n")
-    }
+    self.render_header(buf)
 
     // Render items (possibly in reverse order for reverse-list)
     if items_reversed {
@@ -993,8 +1089,8 @@ pub fn App::render(self : App) -> String {
     // Bottom border
     self.render_bottom_border(buf)
 
-    // Show cursor at query position (prompt is always at row 2 now)
-    let cursor_row = 2
+    // Show cursor at query position
+    let cursor_row = 1
     let cursor_col = string_width(self.prompt) + 1 + self.query.length()
     buf.write_string("\u001b[")
     buf.write_string(cursor_row.to_string())
