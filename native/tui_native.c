@@ -158,6 +158,12 @@ int tui_is_tty(void) {
     return 0;
 }
 
+// Check if stdin specifically is a TTY (for detecting pipe input)
+// Returns 1 if stdin is a TTY (no pipe), 0 if stdin is piped
+int tui_stdin_is_tty(void) {
+    return isatty(STDIN_FILENO) ? 1 : 0;
+}
+
 // Sleep for milliseconds
 void tui_sleep_ms(int ms) {
     usleep(ms * 1000);
@@ -237,6 +243,36 @@ int tui_write_file(const char* path, int path_len, const char* content, int cont
     fwrite(content, 1, content_len, f);
     fclose(f);
     return 0;
+}
+
+// Execute shell command and capture stdout+stderr into provided buffer
+// Returns number of bytes written to out_buf, or -1 on error
+int tui_exec_command(const char* cmd, int cmd_len, char* out_buf, int out_buf_len) {
+    // Null-terminate the command and append stderr redirect
+    // Format: "cmd 2>&1" to capture both stdout and stderr
+    char* cmd_str = malloc(cmd_len + 6); // +6 for " 2>&1\0"
+    if (!cmd_str) return -1;
+    memcpy(cmd_str, cmd, cmd_len);
+    memcpy(cmd_str + cmd_len, " 2>&1", 6); // includes null terminator
+
+    FILE* fp = popen(cmd_str, "r");
+    free(cmd_str);
+    if (!fp) return -1;
+
+    // Read output directly into provided buffer
+    size_t total_len = 0;
+    size_t remaining = out_buf_len - 1; // Leave room for null terminator
+
+    while (remaining > 0) {
+        size_t n = fread(out_buf + total_len, 1, remaining, fp);
+        if (n == 0) break;
+        total_len += n;
+        remaining -= n;
+    }
+
+    pclose(fp);
+    out_buf[total_len] = '\0';
+    return (int)total_len;
 }
 
 // Get current time in milliseconds (monotonic, relative to first call)

@@ -61,6 +61,29 @@ fn write_history_js(path : String, query : String, max_size : Int) -> Unit {
 }
 
 ///|
+/// Execute shell command and capture stdout (JS version, sync)
+/// Note: Uses execSync for shell features (pipes, redirects) needed by preview commands.
+/// Input is already shell-escaped by substitute_placeholders().
+extern "js" fn js_exec_command_sync(cmd : String) -> String =
+  #| (cmd) => {
+  #|   try {
+  #|     const { execSync } = require('child_process');
+  #|     return execSync(cmd, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'], timeout: 5000 });
+  #|   } catch (e) {
+  #|     return e.stdout || '';
+  #|   }
+  #| }
+
+///|
+/// Execute preview command (JS version)
+fn exec_preview_js(cmd : String) -> String {
+  if cmd.length() == 0 {
+    return ""
+  }
+  js_exec_command_sync(cmd)
+}
+
+///|
 /// Parse stdin content into Items (uses common function)
 fn parse_stdin_to_items(content : String, read0 : Bool) -> Array[@core.Item] {
   parse_content_to_items(content, read0)
@@ -83,10 +106,10 @@ async fn js_main() -> Unit {
   let (width, term_height) = @io.get_terminal_size()
   let height = if opts.height > 0 { opts.height } else { term_height }
 
-  // Read items from stdin or use demo data
+  // Read items from stdin (empty if no pipe input)
   let raw_items = if js_stdin_is_tty() {
-    // No pipe input, use demo data for testing
-    get_demo_items()
+    // No pipe input, return empty array
+    []
   } else {
     // Read from stdin pipe
     let content = @js_async.Promise::wait(js_read_stdin_all())
@@ -150,6 +173,9 @@ async fn js_main() -> Unit {
     info=opts.info,
     layout=opts.layout,
     color=opts.color,
+    preview=opts.preview,
+    preview_window=opts.preview_window,
+    fetch_preview=exec_preview_js,
   )
 }
 

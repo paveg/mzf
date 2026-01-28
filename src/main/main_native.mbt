@@ -7,9 +7,14 @@ async fn read_stdin_lines(read0 : Bool) -> Array[@core.Item] {
 }
 
 ///|
+/// FFI: Check if stdin specifically is a TTY (for detecting pipe input)
+extern "c" fn tui_stdin_is_tty() -> Int = "tui_stdin_is_tty"
+
+///|
 /// Check if stdin is a TTY (for detecting pipe input)
+/// Returns true if stdin is a TTY (no pipe), false if stdin is piped
 fn stdin_is_tty() -> Bool {
-  @io.is_tty()
+  tui_stdin_is_tty() != 0
 }
 
 ///|
@@ -30,6 +35,46 @@ extern "c" fn tui_write_file(
   content : Bytes,
   content_len : Int,
 ) -> Int = "tui_write_file"
+
+///|
+/// FFI: Execute shell command and capture stdout into provided buffer
+/// Returns number of bytes written, or -1 on error
+#borrow(cmd, out_buf)
+extern "c" fn tui_exec_command(
+  cmd : Bytes,
+  cmd_len : Int,
+  out_buf : Bytes,
+  out_buf_len : Int,
+) -> Int = "tui_exec_command"
+
+///|
+/// Execute preview command and return output
+pub fn exec_preview_sync(cmd : String) -> String {
+  if cmd.length() == 0 {
+    return ""
+  }
+  let cmd_bytes = @utf8.encode(cmd)
+  // Allocate output buffer (64KB should be enough for preview)
+  let out_buf_len = 65536
+  let out_buf = Bytes::make(out_buf_len, 0)
+  let result_len = tui_exec_command(
+    cmd_bytes,
+    cmd_bytes.length(),
+    out_buf,
+    out_buf_len,
+  )
+  if result_len <= 0 {
+    return ""
+  }
+  // Decode only the relevant portion - create array and convert to bytes
+  let result_arr : Array[Byte] = []
+  for i = 0; i < result_len; i = i + 1 {
+    result_arr.push(out_buf[i])
+  }
+  @utf8.decode(Bytes::from_array(result_arr)) catch {
+    _ => "" // Invalid UTF-8
+  }
+}
 
 ///|
 /// Read history file synchronously and return lines as array
@@ -103,10 +148,10 @@ async fn async_main() -> Unit {
   // Use --height option if specified, otherwise use terminal height
   let height = if opts.height > 0 { opts.height } else { term_height }
 
-  // Read items from stdin or use demo data
+  // Read items from stdin (empty if no pipe input)
   let raw_items = if stdin_is_tty() {
-    // No pipe input, use demo data for testing
-    get_demo_items()
+    // No pipe input, return empty array
+    []
   } else {
     // Read from stdin pipe (use read0 for NUL-delimited input)
     read_stdin_lines(opts.read0)
@@ -169,6 +214,9 @@ async fn async_main() -> Unit {
     info=opts.info,
     layout=opts.layout,
     color=opts.color,
+    preview=opts.preview,
+    preview_window=opts.preview_window,
+    fetch_preview=exec_preview_sync,
   )
 }
 

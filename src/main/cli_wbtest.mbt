@@ -39,6 +39,8 @@ test "cli: default options" {
     info: "default",
     layout: "default",
     color: "",
+    preview: "",
+    preview_window: "right:50%",
   }
   assert_eq(opts.query, "")
   assert_eq(opts.show_help, false)
@@ -278,6 +280,8 @@ test "cli: default new options" {
     info: "default",
     layout: "default",
     color: "",
+    preview: "",
+    preview_window: "right:50%",
   }
   assert_eq(opts.multi, false)
   assert_eq(opts.no_sort, false)
@@ -380,4 +384,27 @@ test "cli: header-lines value extraction" {
   assert_eq(extract_value("--header-lines=10", 15), "10")
   assert_eq(parse_int("2"), 2)
   assert_eq(parse_int("10"), 10)
+}
+
+// =============================================================================
+// Preview Options Tests
+// =============================================================================
+
+///|
+test "cli: preview option patterns" {
+  assert_true("--preview".has_prefix("--preview"))
+  assert_true("--preview=cat {}".has_prefix("--preview="))
+}
+
+///|
+test "cli: preview-window option patterns" {
+  assert_true("--preview-window".has_prefix("--preview-window"))
+  assert_true("--preview-window=right:50%".has_prefix("--preview-window="))
+  assert_true("--preview-window=bottom:40%".has_prefix("--preview-window="))
+}
+
+///|
+test "cli: preview value extraction" {
+  assert_eq(extract_value("--preview=cat {}", 10), "cat {}")
+  assert_eq(extract_value("--preview-window=right:50%", 17), "right:50%")
 }
