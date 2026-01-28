@@ -41,6 +41,9 @@ test "cli: default options" {
     color: "",
     preview: "",
     preview_window: "right:50%",
+    shell_bash: false,
+    shell_zsh: false,
+    shell_fish: false,
   }
   assert_eq(opts.query, "")
   assert_eq(opts.show_help, false)
@@ -282,6 +285,9 @@ test "cli: default new options" {
     color: "",
     preview: "",
     preview_window: "right:50%",
+    shell_bash: false,
+    shell_zsh: false,
+    shell_fish: false,
   }
   assert_eq(opts.multi, false)
   assert_eq(opts.no_sort, false)

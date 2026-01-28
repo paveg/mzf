@@ -102,6 +102,20 @@ async fn js_main() -> Unit {
     return
   }
 
+  // Shell integration: output shell script and exit
+  if opts.shell_bash {
+    @io.print_raw(get_bash_script())
+    return
+  }
+  if opts.shell_zsh {
+    @io.print_raw(get_zsh_script())
+    return
+  }
+  if opts.shell_fish {
+    @io.print_raw(get_fish_script())
+    return
+  }
+
   // Get terminal size
   let (width, term_height) = @io.get_terminal_size()
   let height = if opts.height > 0 { opts.height } else { term_height }

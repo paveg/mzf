@@ -45,6 +45,10 @@ struct CliOptions {
   // Preview options
   preview : String // Preview command (--preview)
   preview_window : String // Preview window spec (--preview-window: right:50%)
+  // Shell integration options
+  shell_bash : Bool // Output bash integration script (--bash)
+  shell_zsh : Bool // Output zsh integration script (--zsh)
+  shell_fish : Bool // Output fish integration script (--fish)
 }
 
 ///|
@@ -98,6 +102,9 @@ fn parse_args() -> CliOptions {
   let mut color = ""
   let mut preview = ""
   let mut preview_window = "right:50%"
+  let mut shell_bash = false
+  let mut shell_zsh = false
+  let mut shell_fish = false
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -281,6 +288,12 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--preview-window=") {
       preview_window = extract_value(arg, 17)
+    } else if arg == "--bash" {
+      shell_bash = true
+    } else if arg == "--zsh" {
+      shell_zsh = true
+    } else if arg == "--fish" {
+      shell_fish = true
     }
     i = i + 1
   }
@@ -321,6 +334,9 @@ fn parse_args() -> CliOptions {
     color,
     preview,
     preview_window,
+    shell_bash,
+    shell_zsh,
+    shell_fish,
   }
 }
 
@@ -389,6 +405,11 @@ fn print_help() -> Unit {
     "    --history <FILE>         History file path\n" +
     "    --history-size <N>       Maximum history size (default: 1000)\n" +
     "\n" +
+    "  Shell Integration:\n" +
+    "    --bash                   Output bash integration script\n" +
+    "    --zsh                    Output zsh integration script\n" +
+    "    --fish                   Output fish integration script\n" +
+    "\n" +
     "  Other:\n" +
     "    -h, --help               Show this help message\n" +
     "    -v, --version            Show version information\n" +
@@ -410,7 +431,30 @@ fn print_help() -> Unit {
     "    ps aux | mzf -n 1,2 -d ' '  # Match process name and user\n" +
     "    echo -e 'foo\\nbar' | mzf -e -q oo  # Exact match\n" +
     "    find . | mzf -f src  # Filter mode (non-interactive)\n" +
-    "    ls --color=always | mzf --ansi  # Preserve colors\n"
+    "    ls --color=always | mzf --ansi  # Preserve colors\n" +
+    "\n" +
+    "SHELL INTEGRATION:\n" +
+    "    # Bash: Add to ~/.bashrc\n" +
+    "    eval \"$(mzf --bash)\"\n" +
+    "\n" +
+    "    # Zsh: Add to ~/.zshrc\n" +
+    "    source <(mzf --zsh)\n" +
+    "\n" +
+    "    # Fish: Add to ~/.config/fish/config.fish\n" +
+    "    mzf --fish | source\n" +
+    "\n" +
+    "    Key bindings after sourcing:\n" +
+    "      Ctrl-T  File selection (paste to command line)\n" +
+    "      Ctrl-R  History search\n" +
+    "      Alt-C   cd to selected directory\n" +
+    "\n" +
+    "    Environment variables:\n" +
+    "      MZF_CTRL_T_COMMAND    File listing command\n" +
+    "      MZF_CTRL_T_OPTS       Options for Ctrl-T\n" +
+    "      MZF_ALT_C_COMMAND     Directory listing command\n" +
+    "      MZF_ALT_C_OPTS        Options for Alt-C\n" +
+    "      MZF_CTRL_R_OPTS       Options for Ctrl-R\n" +
+    "      MZF_COMPLETION_TRIGGER  Completion trigger (default: **)\n"
   println(help)
 }
 
