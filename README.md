@@ -13,7 +13,8 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 - ANSI color support (`--ansi`)
 - History support (`--history`)
 - Stdin pipe support (both native and JS builds)
-- Lightweight: ~541KB native binary, ~228KB JS
+- Extended search mode (`-x, --extended`)
+- Lightweight: ~549KB native binary, ~249KB JS
 
 ## Comparison
 
@@ -22,7 +23,7 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 | [fzf](https://github.com/junegunn/fzf) | Go | ~3.5MB | Full-featured, preview, multi-select |
 | [skim](https://github.com/lotabout/skim) | Rust | ~3.9MB | fzf-compatible, async |
 | [peco](https://github.com/peco/peco) | Go | ~4.7MB | Simple, customizable |
-| **mzf** | MoonBit | **~541KB** | fzf-compatible, lightweight |
+| **mzf** | MoonBit | **~549KB** | fzf-compatible, lightweight |
 
 *mzf is ~6x smaller than alternatives while providing fzf-compatible options.*
 
