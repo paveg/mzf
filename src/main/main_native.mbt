@@ -60,6 +60,7 @@ fn stdin_is_tty() -> Bool {
 
 ///|
 /// FFI: Read file contents (sync) - returns content as Bytes and length
+#borrow(path, out_len)
 extern "c" fn tui_read_file(
   path : Bytes,
   path_len : Int,
@@ -68,6 +69,7 @@ extern "c" fn tui_read_file(
 
 ///|
 /// FFI: Write file contents (sync)
+#borrow(path, content)
 extern "c" fn tui_write_file(
   path : Bytes,
   path_len : Int,
