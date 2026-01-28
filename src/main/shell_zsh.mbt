@@ -19,7 +19,7 @@ pub fn get_zsh_script() -> String {
     #|mzf-file-widget() {
     #|  local cmd="${MZF_CTRL_T_COMMAND:-find . -type f 2>/dev/null | head -50000}"
     #|  local output
-    #|  output=$(eval "$cmd" | mzf --height=40% -m $MZF_CTRL_T_OPTS)
+    #|  output=$(eval "$cmd" | mzf --height 20 -m $MZF_CTRL_T_OPTS)
     #|  if [[ -n "$output" ]]; then
     #|    # Escape and join multiple selections
     #|    output=$(echo "$output" | while IFS= read -r line; do print -rn -- "${(q)line} "; done)
@@ -34,10 +34,8 @@ pub fn get_zsh_script() -> String {
     #|mzf-history-widget() {
     #|  local output
     #|  output=$(
-    #|    fc -lnr 1 2>/dev/null |
-    #|    sed 's/^[[:space:]]*//' |
-    #|    awk '!x[$0]++' |
-    #|    mzf --height=40% --reverse --query="$LBUFFER" \
+    #|    print -l -- ${(u)history} |
+    #|    mzf --height 20 --reverse --query="$LBUFFER" \
     #|        --prompt="history> " $MZF_CTRL_R_OPTS
     #|  )
     #|  if [[ -n "$output" ]]; then
@@ -52,7 +50,7 @@ pub fn get_zsh_script() -> String {
     #|mzf-cd-widget() {
     #|  local cmd="${MZF_ALT_C_COMMAND:-find . -type d 2>/dev/null | head -50000}"
     #|  local dir
-    #|  dir=$(eval "$cmd" | mzf --height=40% +m --prompt="cd> " $MZF_ALT_C_OPTS)
+    #|  dir=$(eval "$cmd" | mzf --height 20 --prompt="cd> " $MZF_ALT_C_OPTS)
     #|  if [[ -n "$dir" ]]; then
     #|    cd "$dir" || return
     #|    LBUFFER=""
@@ -120,7 +118,7 @@ pub fn get_zsh_script() -> String {
     #|  fi
     #|
     #|  find "$base_dir" -maxdepth 5 2>/dev/null | \
-    #|    mzf --height=40% -m --prompt="path> " $MZF_COMPLETION_OPTS | \
+    #|    mzf --height 20 -m --prompt="path> " $MZF_COMPLETION_OPTS | \
     #|    head -1
     #|}
     #|
@@ -134,7 +132,7 @@ pub fn get_zsh_script() -> String {
     #|  fi
     #|
     #|  find "$base_dir" -maxdepth 5 -type d 2>/dev/null | \
-    #|    mzf --height=40% +m --prompt="dir> " $MZF_COMPLETION_OPTS
+    #|    mzf --height 20 --prompt="dir> " $MZF_COMPLETION_OPTS
     #|}
     #|
     #|# Bind Tab to mzf completion

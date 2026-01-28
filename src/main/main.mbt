@@ -34,6 +34,7 @@ fn run_app(
   preview? : String = "",
   preview_window? : String = "right:50%",
   fetch_preview? : (String) -> String = fn(_cmd) { "" },
+  inline_mode? : Bool = false,
 ) -> Unit {
   if items.length() == 0 {
     if exit_0 {
@@ -42,6 +43,8 @@ fn run_app(
     }
     return
   }
+  // Calculate row_offset for inline mode (1 = inline mode, 0 = full screen)
+  let row_offset = if inline_mode { 1 } else { 0 }
   let app = @ui.App::new(
     items,
     width,
@@ -70,6 +73,7 @@ fn run_app(
     color~,
     preview~,
     preview_window~,
+    row_offset~,
   )
 
   // Handle --select-1: auto-select if only one match
@@ -111,12 +115,27 @@ fn run_app(
     return
   }
 
-  // Enter alternate screen and enable raw mode
-  @io.print_raw("\u001b[?1049h") // Enter alternate screen
-  @io.print_raw("\u001b[2J") // Clear entire alternate screen
-  @io.print_raw("\u001b[H") // Move to home
-  @io.print_raw("\u001b[0m") // Reset all attributes
+  // Enter raw mode and set up screen
   @io.enable_raw_mode()
+  if inline_mode {
+    // Inline mode: render at current cursor position
+    // Move down to make room and save position
+    @io.print_raw("\u001b[0m") // Reset all attributes
+    @io.print_raw("\u001b7") // Save cursor position (DECSC)
+    // Print newlines to make room for the UI
+    for _i = 0; _i < height; _i = _i + 1 {
+      @io.print_raw("\n")
+    }
+    // Move cursor up to the start of our rendering area
+    @io.print_raw("\u001b[" + height.to_string() + "A")
+    @io.print_raw("\u001b[0G") // Move to column 0
+  } else {
+    // Full screen mode: use alternate screen buffer
+    @io.print_raw("\u001b[?1049h") // Enter alternate screen
+    @io.print_raw("\u001b[2J") // Clear entire alternate screen
+    @io.print_raw("\u001b[H") // Move to home
+    @io.print_raw("\u001b[0m") // Reset all attributes
+  }
 
   // Helper to update preview
   fn update_preview() -> Unit {
@@ -142,8 +161,23 @@ fn run_app(
   // Initial preview fetch
   update_preview()
 
+  // Track if this is the first render (for inline mode cursor positioning)
+  let first_render = Ref::new(true)
+
+  // Helper to render with proper cursor positioning for inline mode
+  fn do_render() -> Unit {
+    if inline_mode && not(first_render.val) {
+      // Move cursor to start of rendering area (from prompt position)
+      // After render, cursor is at prompt. Move to column 0, then up to start.
+      @io.print_raw("\u001b[0G") // Move to column 0
+      @io.print_raw("\u001b[" + (height - 1).to_string() + "A") // Move up to start
+    }
+    first_render.val = false
+    @io.print_raw(app.render())
+  }
+
   // Initial render
-  @io.print_raw(app.render())
+  do_render()
 
   // Keep event loop alive (needed for JS target)
   @io.set_idle_handler(fn() { () })
@@ -158,12 +192,27 @@ fn run_app(
     if app.is_running() {
       // Update preview if selection changed
       update_preview()
-      @io.print_raw(app.render())
+      do_render()
     } else {
       // Exit cleanup
       @io.stop_keypress_listener()
       @io.cleanup_stdin()
-      @io.print_raw("\u001b[?1049l") // Leave alternate screen
+      if inline_mode {
+        // Inline mode: clear the rendered area and restore cursor
+        // Move to start of our area
+        @io.print_raw("\u001b[0G") // Move to column 0
+        // Clear each line we used
+        for _i = 0; _i < height; _i = _i + 1 {
+          @io.print_raw("\u001b[2K") // Clear entire line
+          @io.print_raw("\u001b[1B") // Move down
+        }
+        // Move back up and restore original position
+        @io.print_raw("\u001b[" + height.to_string() + "A")
+        @io.print_raw("\u001b8") // Restore cursor position (DECRC)
+        @io.print_raw("\u001b[0K") // Clear from cursor to end of line
+      } else {
+        @io.print_raw("\u001b[?1049l") // Leave alternate screen
+      }
 
       // Output result
       match app.get_result() {

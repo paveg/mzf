@@ -190,6 +190,7 @@ async fn js_main() -> Unit {
     preview=opts.preview,
     preview_window=opts.preview_window,
     fetch_preview=exec_preview_js,
+    inline_mode=opts.height > 0,
   )
 }
 

@@ -18,7 +18,7 @@ pub fn get_fish_script() -> String {
     #|# Ctrl-T: File selection
     #|function __mzf_select
     #|  set -l cmd (string length -q -- "$MZF_CTRL_T_COMMAND"; and echo "$MZF_CTRL_T_COMMAND"; or echo "find . -type f 2>/dev/null | head -50000")
-    #|  set -l output (eval $cmd | mzf --height=40% -m $MZF_CTRL_T_OPTS)
+    #|  set -l output (eval $cmd | mzf --height 20 -m $MZF_CTRL_T_OPTS)
     #|  if test -n "$output"
     #|    # Escape and join selections
     #|    set -l escaped
@@ -35,7 +35,7 @@ pub fn get_fish_script() -> String {
     #|  set -l output (
     #|    builtin history --show-time='' | \
     #|    awk '!x[$0]++' | \
-    #|    mzf --height=40% --reverse --query=(commandline) \
+    #|    mzf --height 20 --reverse --query=(commandline) \
     #|        --prompt="history> " $MZF_CTRL_R_OPTS
     #|  )
     #|  if test -n "$output"
@@ -47,7 +47,7 @@ pub fn get_fish_script() -> String {
     #|# Alt-C: cd widget
     #|function __mzf_cd
     #|  set -l cmd (string length -q -- "$MZF_ALT_C_COMMAND"; and echo "$MZF_ALT_C_COMMAND"; or echo "find . -type d 2>/dev/null | head -50000")
-    #|  set -l dir (eval $cmd | mzf --height=40% +m --prompt="cd> " $MZF_ALT_C_OPTS)
+    #|  set -l dir (eval $cmd | mzf --height 20 --prompt="cd> " $MZF_ALT_C_OPTS)
     #|  if test -n "$dir"
     #|    cd "$dir"
     #|    commandline -r ''
@@ -130,7 +130,7 @@ pub fn get_fish_script() -> String {
     #|  end
     #|
     #|  find "$base_dir" -maxdepth 5 2>/dev/null | \
-    #|    mzf --height=40% -m --prompt="path> " $MZF_COMPLETION_OPTS | \
+    #|    mzf --height 20 -m --prompt="path> " $MZF_COMPLETION_OPTS | \
     #|    head -1
     #|end
     #|
@@ -144,7 +144,7 @@ pub fn get_fish_script() -> String {
     #|  end
     #|
     #|  find "$base_dir" -maxdepth 5 -type d 2>/dev/null | \
-    #|    mzf --height=40% +m --prompt="dir> " $MZF_COMPLETION_OPTS
+    #|    mzf --height 20 --prompt="dir> " $MZF_COMPLETION_OPTS
     #|end
   script
 }
