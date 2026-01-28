@@ -104,11 +104,25 @@ mzf --help
 
 | Option | Description |
 |--------|-------------|
+| `-x, --extended` | Extended search mode (see below) |
 | `-q, --query <QUERY>` | Start with the given query |
 | `-e, --exact` | Exact-match mode (substring) |
 | `-i, --ignore-case` | Force case-insensitive matching |
 | `-n, --nth <N[,M,...]>` | Match only in specified fields |
 | `-d, --delimiter <STR>` | Field delimiter |
+
+#### Extended Search Mode (`-x`)
+
+| Token | Match type | Description |
+|-------|-----------|-------------|
+| `term` | fuzzy | Default fuzzy match |
+| `^term` | prefix | Starts with `term` |
+| `term$` | suffix | Ends with `term` |
+| `'term` | exact | Exact substring match |
+| `!term` | inverse | Exclude items matching `term` |
+| `!^term` | inverse prefix | Exclude items starting with `term` |
+| `term1 term2` | AND | Both terms must match |
+| `term1 \| term2` | OR | Either term matches |
 
 ### Display
 
@@ -167,7 +181,7 @@ make test
 
 | Category | Option | fzf | mzf | Notes |
 |----------|--------|:---:|:---:|-------|
-| **Search** | `-x, --extended` | ✅ | ❌ | Extended search syntax (`^`, `$`, `'`, `!`) |
+| **Search** | `-x, --extended` | ✅ | ✅ | Extended search syntax (`^`, `$`, `'`, `!`) |
 | | `-e, --exact` | ✅ | ✅ | |
 | | `-i, --ignore-case` | ✅ | ✅ | |
 | | `+i` (case-sensitive) | ✅ | ❌ | |
