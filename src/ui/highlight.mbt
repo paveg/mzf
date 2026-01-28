@@ -88,17 +88,17 @@ pub struct ColorScheme {
 }
 
 ///|
-/// Default color scheme
+/// MoonBit-inspired color scheme (purple/magenta based)
 pub fn ColorScheme::default() -> ColorScheme {
   {
     fg: "\u001b[37m", // White foreground for query
-    prompt: ansi_yellow,
-    pointer: ansi_cyan,
-    marker: ansi_green,
+    prompt: "\u001b[95m", // Bright magenta (MoonBit purple)
+    pointer: "\u001b[35m", // Magenta
+    marker: "\u001b[96m", // Bright cyan (accent)
     info: ansi_dim,
-    header: ansi_magenta,
-    border: ansi_dim,
-    hl: ansi_cyan,
+    header: "\u001b[93m", // Bright yellow (accent)
+    border: "\u001b[35m", // Magenta
+    hl: "\u001b[95m", // Bright magenta for match highlights
   }
 }
 
