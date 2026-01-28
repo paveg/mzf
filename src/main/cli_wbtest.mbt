@@ -29,6 +29,7 @@ test "cli: default options" {
     filter: "",
     print_query: false,
     header: "",
+    header_lines: 0,
     with_nth: "",
     expect: "",
     ansi: false,
@@ -267,6 +268,7 @@ test "cli: default new options" {
     filter: "",
     print_query: false,
     header: "",
+    header_lines: 0,
     with_nth: "",
     expect: "",
     ansi: false,
@@ -364,4 +366,18 @@ test "cli: ansi flag recognition" {
 test "cli: history option patterns" {
   assert_true("--history".has_prefix("--history"))
   assert_true("--history=/path/to/file".has_prefix("--history="))
+}
+
+///|
+test "cli: header-lines option patterns" {
+  assert_true("--header-lines".has_prefix("--header-lines"))
+  assert_true("--header-lines=2".has_prefix("--header-lines="))
+}
+
+///|
+test "cli: header-lines value extraction" {
+  assert_eq(extract_value("--header-lines=2", 15), "2")
+  assert_eq(extract_value("--header-lines=10", 15), "10")
+  assert_eq(parse_int("2"), 2)
+  assert_eq(parse_int("10"), 10)
 }

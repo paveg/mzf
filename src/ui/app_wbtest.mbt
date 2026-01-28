@@ -795,3 +795,102 @@ test "history: saved_query preserves original" {
   app.history_next()
   assert_eq(app.query, "my query")
 }
+
+// =============================================================================
+// Page Up/Down Tests
+// =============================================================================
+
+///|
+test "page_up: moves selection up by page size" {
+  // Create 20 items
+  let items : Array[@core.Item] = []
+  for i = 0; i < 20; i = i + 1 {
+    items.push(@core.Item::new("item" + i.to_string(), i))
+  }
+  let app = App::new(items, 80, 10) // Small height for testing
+  app.selected_idx = 15
+  app.select_page_up()
+  assert_true(app.selected_idx < 15)
+}
+
+///|
+test "page_down: moves selection down by page size" {
+  let items : Array[@core.Item] = []
+  for i = 0; i < 20; i = i + 1 {
+    items.push(@core.Item::new("item" + i.to_string(), i))
+  }
+  let app = App::new(items, 80, 10)
+  app.selected_idx = 0
+  app.select_page_down()
+  assert_true(app.selected_idx > 0)
+}
+
+///|
+test "page_up: stops at top without cycle" {
+  let items : Array[@core.Item] = []
+  for i = 0; i < 20; i = i + 1 {
+    items.push(@core.Item::new("item" + i.to_string(), i))
+  }
+  let app = App::new(items, 80, 10, cycle=false)
+  app.selected_idx = 2
+  app.select_page_up()
+  assert_eq(app.selected_idx, 0)
+}
+
+///|
+test "page_down: stops at bottom without cycle" {
+  let items : Array[@core.Item] = []
+  for i = 0; i < 20; i = i + 1 {
+    items.push(@core.Item::new("item" + i.to_string(), i))
+  }
+  let app = App::new(items, 80, 10, cycle=false)
+  app.selected_idx = 18
+  app.select_page_down()
+  assert_eq(app.selected_idx, 19)
+}
+
+///|
+test "page_up: wraps with cycle enabled" {
+  let items : Array[@core.Item] = []
+  for i = 0; i < 30; i = i + 1 {
+    items.push(@core.Item::new("item" + i.to_string(), i))
+  }
+  let app = App::new(items, 80, 10, cycle=true) // height 10 = page_size ~5
+  app.selected_idx = 2 // near top
+  app.select_page_up() // should wrap around
+  // When near top and cycling, should wrap to near bottom
+  assert_true(app.selected_idx >= 20) // Should be near bottom
+}
+
+// =============================================================================
+// Multi-line Header Tests
+// =============================================================================
+
+///|
+test "count_lines: empty string" {
+  assert_eq(count_lines(""), 0)
+}
+
+///|
+test "count_lines: single line" {
+  assert_eq(count_lines("hello"), 1)
+}
+
+///|
+test "count_lines: multiple lines" {
+  assert_eq(count_lines("line1\nline2\nline3"), 3)
+}
+
+///|
+test "count_lines: trailing newline" {
+  assert_eq(count_lines("line1\nline2\n"), 3) // "line1", "line2", "" (empty after)
+}
+
+///|
+test "header: multi-line header" {
+  let items = [@core.Item::new("test", 0)]
+  let app = App::new(items, 80, 24, header="Header Line 1\nHeader Line 2")
+  let output = app.render()
+  assert_true(output.contains("Header Line 1"))
+  assert_true(output.contains("Header Line 2"))
+}

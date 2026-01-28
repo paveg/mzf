@@ -28,6 +28,7 @@ struct CliOptions {
   filter : String // Non-interactive filter mode (-f, --filter)
   print_query : Bool // Print query as first line (--print-query)
   header : String // Header string (--header)
+  header_lines : Int // Number of header lines from input (--header-lines)
   // Display transformation
   with_nth : String // Field index for display (--with-nth)
   // Key handling
@@ -82,6 +83,7 @@ fn parse_args() -> CliOptions {
   let mut filter = ""
   let mut print_query = false
   let mut header = ""
+  let mut header_lines = 0
   let mut with_nth = ""
   let mut expect = ""
   let mut ansi = false
@@ -195,6 +197,13 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--header=") {
       header = extract_value(arg, 9)
+    } else if arg == "--header-lines" {
+      i = i + 1
+      if i < args.length() {
+        header_lines = parse_int(args[i])
+      }
+    } else if arg.has_prefix("--header-lines=") {
+      header_lines = parse_int(extract_value(arg, 15))
     } else if arg == "--with-nth" {
       i = i + 1
       if i < args.length() {
@@ -281,6 +290,7 @@ fn parse_args() -> CliOptions {
     filter,
     print_query,
     header,
+    header_lines,
     with_nth,
     expect,
     ansi,
@@ -329,6 +339,7 @@ fn print_help() -> Unit {
     "    --pointer <STR>          Pointer to current line (default: \"> \")\n" +
     "    --marker <STR>           Multi-select marker (default: \"*\")\n" +
     "    --header <STR>           Header string to display\n" +
+    "    --header-lines <N>       First N lines of input as header\n" +
     "    --with-nth <N[,M,...]>   Transform display using field indices\n" +
     "    --ansi                   Enable ANSI color processing\n" +
     "    --border <STYLE>         Border style (none, rounded, sharp, horizontal)\n" +

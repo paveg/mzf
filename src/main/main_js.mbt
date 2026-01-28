@@ -171,7 +171,56 @@ async fn js_main() -> Unit {
   }
 
   // Apply --tac if specified (reverse input order)
-  let items = if opts.tac { reverse_items(raw_items) } else { raw_items }
+  let tac_items = if opts.tac { reverse_items(raw_items) } else { raw_items }
+
+  // Handle --header-lines: extract first N lines as header
+  let (items, header_from_lines) = if opts.header_lines > 0 &&
+    tac_items.length() > opts.header_lines {
+    // Extract header lines
+    let header_items : Array[@core.Item] = []
+    let remaining_items : Array[@core.Item] = []
+    for i = 0; i < tac_items.length(); i = i + 1 {
+      if i < opts.header_lines {
+        header_items.push(tac_items[i])
+      } else {
+        // Reindex remaining items
+        remaining_items.push(
+          @core.Item::new(tac_items[i].text, i - opts.header_lines),
+        )
+      }
+    }
+    // Build header string from header lines
+    let buf = StringBuilder::new()
+    for i = 0; i < header_items.length(); i = i + 1 {
+      if i > 0 {
+        buf.write_string("\n")
+      }
+      buf.write_string(header_items[i].text)
+    }
+    (remaining_items, buf.to_string())
+  } else if opts.header_lines > 0 && tac_items.length() <= opts.header_lines {
+    // All items become header, no items left
+    let buf = StringBuilder::new()
+    for i = 0; i < tac_items.length(); i = i + 1 {
+      if i > 0 {
+        buf.write_string("\n")
+      }
+      buf.write_string(tac_items[i].text)
+    }
+    ([], buf.to_string())
+  } else {
+    (tac_items, "")
+  }
+
+  // Combine header from --header-lines with --header option
+  let combined_header = if header_from_lines.length() > 0 &&
+    opts.header.length() > 0 {
+    header_from_lines + "\n" + opts.header
+  } else if header_from_lines.length() > 0 {
+    header_from_lines
+  } else {
+    opts.header
+  }
 
   // Handle --filter: non-interactive filter mode
   if opts.filter.length() > 0 {
@@ -248,7 +297,7 @@ async fn js_main() -> Unit {
     extended=opts.extended,
     exact=opts.exact,
     ignore_case=opts.ignore_case,
-    header=opts.header,
+    header=combined_header,
     print_query=opts.print_query,
     with_nth=opts.with_nth,
     expect=opts.expect,

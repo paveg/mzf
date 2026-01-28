@@ -95,6 +95,7 @@ mzf --help
 | `Tab` | Toggle mark (multi-select, requires -m) |
 | `Esc` / `Ctrl+C` | Cancel |
 | `Up` / `Down` | Move selection / History navigation |
+| `Page Up` / `Page Down` | Move selection by page |
 | `Ctrl+P` / `Ctrl+N` | History prev/next (with --history) |
 | `Ctrl+U` | Clear query |
 | `Backspace` | Delete character |
@@ -135,6 +136,7 @@ mzf --help
 | `--pointer <STR>` | Pointer to current line (default: "> ") |
 | `--marker <STR>` | Multi-select marker (default: "*") |
 | `--header <STR>` | Header string to display |
+| `--header-lines <N>` | First N lines of input as header |
 | `--with-nth <N[,M,...]>` | Field index for display transformation |
 | `--ansi` | Enable ANSI color processing |
 | `--border <STYLE>` | Border style (none, rounded, sharp, horizontal) |
@@ -209,7 +211,7 @@ make test
 | | `--pointer` | ✅ | ✅ | |
 | | `--marker` | ✅ | ✅ | |
 | | `--header` | ✅ | ✅ | |
-| | `--header-lines` | ✅ | ❌ | |
+| | `--header-lines` | ✅ | ✅ | |
 | **Display** | `--ansi` | ✅ | ✅ | |
 | | `--color` | ✅ | ✅ | mzf: subset of color options |
 | | `--tabstop` | ✅ | ❌ | |
