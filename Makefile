@@ -40,9 +40,16 @@ $(TUI_NATIVE_O): $(TUI_NATIVE_C)
 	@mkdir -p $(BUILD_DIR)
 	cc -c -o $@ $<
 
-# Run tests (JS target required due to extern "C" limitation in wasm-gc)
+# Run tests (JS target for quick testing)
 test:
 	moon test --target js
+
+# Run tests on native target (filters expected linker warning)
+test-native:
+	@moon test --target native 2>&1 | grep -v "WARN.*overrides C/C++ linker flags"
+
+# Run all tests (both JS and native)
+test-all: test test-native
 
 # Format code
 fmt:
