@@ -863,28 +863,8 @@ test "page_up: wraps with cycle enabled" {
 }
 
 // =============================================================================
-// Multi-line Header Tests
+// Multi-line Header Tests (count_lines tests moved to core/strings_test.mbt)
 // =============================================================================
-
-///|
-test "count_lines: empty string" {
-  assert_eq(count_lines(""), 0)
-}
-
-///|
-test "count_lines: single line" {
-  assert_eq(count_lines("hello"), 1)
-}
-
-///|
-test "count_lines: multiple lines" {
-  assert_eq(count_lines("line1\nline2\nline3"), 3)
-}
-
-///|
-test "count_lines: trailing newline" {
-  assert_eq(count_lines("line1\nline2\n"), 3) // "line1", "line2", "" (empty after)
-}
 
 ///|
 test "header: multi-line header" {

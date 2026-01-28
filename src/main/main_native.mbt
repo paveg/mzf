@@ -1,55 +1,9 @@
 ///|
 /// Read all lines from stdin and return as array of Items (native only)
 async fn read_stdin_lines(read0 : Bool) -> Array[@core.Item] {
-  let items : Array[@core.Item] = []
-  // Read all stdin content
   let data = @stdio.stdin.read_all()
   let content = data.text()
-
-  // Choose delimiter based on read0 option
-  let delimiter = if read0 { '\u0000' } else { '\n' }
-
-  // Split into lines
-  let mut idx = 0
-  let mut start = 0
-  let chars : Array[Char] = content.iter().collect()
-  let len = chars.length()
-  for i = 0; i < len; i = i + 1 {
-    if chars[i] == delimiter {
-      if i > start {
-        let buf = StringBuilder::new()
-        for j = start; j < i; j = j + 1 {
-          // Skip carriage return when not using read0
-          if not(read0) && chars[j] == '\r' {
-            continue
-          }
-          buf.write_char(chars[j])
-        }
-        let line = buf.to_string()
-        if line.length() > 0 {
-          items.push(@core.Item::new(line, idx))
-          idx = idx + 1
-        }
-      }
-      start = i + 1
-    }
-  }
-
-  // Handle last line without delimiter
-  if start < len {
-    let buf = StringBuilder::new()
-    for j = start; j < len; j = j + 1 {
-      if not(read0) && chars[j] == '\r' {
-        continue
-      }
-      buf.write_char(chars[j])
-    }
-    let line = buf.to_string()
-    if line.length() > 0 {
-      items.push(@core.Item::new(line, idx))
-    }
-  }
-  items
+  parse_content_to_items(content, read0)
 }
 
 ///|
@@ -80,40 +34,19 @@ extern "c" fn tui_write_file(
 ///|
 /// Read history file synchronously and return lines as array
 fn read_history_file_sync(path : String) -> Array[String] {
-  let history : Array[String] = []
   if path.length() == 0 {
-    return history
+    return []
   }
   let path_bytes = @utf8.encode(path)
   let out_len : FixedArray[Int] = [0]
   let content_bytes = tui_read_file(path_bytes, path_bytes.length(), out_len)
   if out_len[0] == 0 {
-    return history
+    return []
   }
-  // Convert bytes to string
   let content = @utf8.decode(content_bytes) catch {
-    _ => return history // Invalid UTF-8
+    _ => return [] // Invalid UTF-8
   }
-  // Split by newlines
-  let chars : Array[Char] = content.iter().collect()
-  let buf = StringBuilder::new()
-  for i = 0; i < chars.length(); i = i + 1 {
-    if chars[i] == '\n' {
-      let line = buf.to_string()
-      if line.length() > 0 {
-        history.push(line)
-      }
-      buf.reset()
-    } else if chars[i] != '\r' {
-      buf.write_char(chars[i])
-    }
-  }
-  // Handle last line without newline
-  let last_line = buf.to_string()
-  if last_line.length() > 0 {
-    history.push(last_line)
-  }
-  history
+  parse_history_content(content)
 }
 
 ///|
@@ -126,25 +59,10 @@ pub fn write_history_sync(
   if path.length() == 0 || query.length() == 0 {
     return
   }
-  // Read existing history
   let history = read_history_file_sync(path)
-  // Append new query
-  history.push(query)
-  // Truncate if exceeds max_size
-  let start = if history.length() > max_size {
-    history.length() - max_size
-  } else {
-    0
-  }
-  // Build output
-  let buf = StringBuilder::new()
-  for i = start; i < history.length(); i = i + 1 {
-    buf.write_string(history[i])
-    buf.write_string("\n")
-  }
-  // Write to file
+  let output = build_history_output(history, query, max_size)
   let path_bytes = @utf8.encode(path)
-  let content_bytes = @utf8.encode(buf.to_string())
+  let content_bytes = @utf8.encode(output)
   ignore(
     tui_write_file(
       path_bytes,
@@ -158,34 +76,13 @@ pub fn write_history_sync(
 ///|
 /// Read history file and return lines as array (for startup loading)
 async fn read_history_file(path : String) -> Array[String] {
-  let history : Array[String] = []
   if path.length() == 0 {
-    return history
+    return []
   }
-  // Try to read the file
   let content = @fs.read_file(path).text() catch {
-    _ => return history // File doesn't exist or can't be read
+    _ => return [] // File doesn't exist or can't be read
   }
-  // Split by newlines
-  let chars : Array[Char] = content.iter().collect()
-  let buf = StringBuilder::new()
-  for i = 0; i < chars.length(); i = i + 1 {
-    if chars[i] == '\n' {
-      let line = buf.to_string()
-      if line.length() > 0 {
-        history.push(line)
-      }
-      buf.reset()
-    } else if chars[i] != '\r' {
-      buf.write_char(chars[i])
-    }
-  }
-  // Handle last line without newline
-  let last_line = buf.to_string()
-  if last_line.length() > 0 {
-    history.push(last_line)
-  }
-  history
+  parse_history_content(content)
 }
 
 ///|
@@ -219,108 +116,24 @@ async fn async_main() -> Unit {
   let tac_items = if opts.tac { reverse_items(raw_items) } else { raw_items }
 
   // Handle --header-lines: extract first N lines as header
-  let (items, header_from_lines) = if opts.header_lines > 0 &&
-    tac_items.length() > opts.header_lines {
-    // Extract header lines
-    let header_items : Array[@core.Item] = []
-    let remaining_items : Array[@core.Item] = []
-    for i = 0; i < tac_items.length(); i = i + 1 {
-      if i < opts.header_lines {
-        header_items.push(tac_items[i])
-      } else {
-        // Reindex remaining items
-        remaining_items.push(
-          @core.Item::new(tac_items[i].text, i - opts.header_lines),
-        )
-      }
-    }
-    // Build header string from header lines
-    let buf = StringBuilder::new()
-    for i = 0; i < header_items.length(); i = i + 1 {
-      if i > 0 {
-        buf.write_string("\n")
-      }
-      buf.write_string(header_items[i].text)
-    }
-    (remaining_items, buf.to_string())
-  } else if opts.header_lines > 0 && tac_items.length() <= opts.header_lines {
-    // All items become header, no items left
-    let buf = StringBuilder::new()
-    for i = 0; i < tac_items.length(); i = i + 1 {
-      if i > 0 {
-        buf.write_string("\n")
-      }
-      buf.write_string(tac_items[i].text)
-    }
-    ([], buf.to_string())
-  } else {
-    (tac_items, "")
-  }
-
-  // Combine header from --header-lines with --header option
-  let combined_header = if header_from_lines.length() > 0 &&
-    opts.header.length() > 0 {
-    header_from_lines + "\n" + opts.header
-  } else if header_from_lines.length() > 0 {
-    header_from_lines
-  } else {
-    opts.header
-  }
+  let extraction = extract_header_lines(tac_items, opts.header_lines)
+  let items = extraction.items
+  let combined_header = combine_headers(extraction.header, opts.header)
 
   // Load history from file if specified
   let history = read_history_file(opts.history)
 
   // Handle --filter: non-interactive filter mode
   if opts.filter.length() > 0 {
-    // Filter items using the pattern
-    let case_sensitive = if opts.ignore_case {
-      false
-    } else {
-      @core.has_uppercase_query(opts.filter)
-    }
-    let filtered = if opts.extended {
-      if opts.no_sort {
-        @core.filter_extended_no_sort(opts.filter, items, case_sensitive)
-      } else {
-        @core.filter_extended(opts.filter, items, case_sensitive)
-      }
-    } else if opts.exact {
-      if opts.no_sort {
-        @core.filter_exact_no_sort(opts.filter, items, opts.ignore_case)
-      } else {
-        @core.filter_exact(opts.filter, items, opts.ignore_case)
-      }
-    } else if opts.ignore_case {
-      if opts.no_sort {
-        @core.filter_without_sort_ignore_case(opts.filter, items)
-      } else {
-        @core.filter_and_score_ignore_case(opts.filter, items)
-      }
-    } else if opts.no_sort {
-      @core.filter_without_sort(opts.filter, items)
-    } else {
-      @core.filter_and_score(opts.filter, items)
-    }
-
-    // Output print_query first if requested
-    if opts.print_query {
-      if opts.print0 {
-        @io.print_raw(opts.filter)
-        @io.print_raw("\u0000")
-      } else {
-        println(opts.filter)
-      }
-    }
-
-    // Output matching items
-    for result in filtered {
-      if opts.print0 {
-        @io.print_raw(result.item.text)
-        @io.print_raw("\u0000")
-      } else {
-        println(result.item.text)
-      }
-    }
+    let filtered = filter_items_batch(
+      opts.filter,
+      items,
+      opts.extended,
+      opts.exact,
+      opts.ignore_case,
+      opts.no_sort,
+    )
+    output_filter_results(filtered, opts.filter, opts.print_query, opts.print0)
     return
   }
   run_app(
