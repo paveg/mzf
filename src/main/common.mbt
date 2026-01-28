@@ -145,7 +145,10 @@ pub fn extract_header_lines(
 
 ///|
 /// Combine headers from --header-lines and --header option
-pub fn combine_headers(header_from_lines : String, header_option : String) -> String {
+pub fn combine_headers(
+  header_from_lines : String,
+  header_option : String,
+) -> String {
   if header_from_lines.length() > 0 && header_option.length() > 0 {
     header_from_lines + "\n" + header_option
   } else if header_from_lines.length() > 0 {
