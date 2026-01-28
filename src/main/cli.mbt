@@ -42,6 +42,9 @@ struct CliOptions {
   info : String // Info line style (--info: default, hidden, inline)
   layout : String // Layout (--layout: default, reverse, reverse-list)
   color : String // Color scheme (--color: prompt:yellow,pointer:cyan,...)
+  // Preview options
+  preview : String // Preview command (--preview)
+  preview_window : String // Preview window spec (--preview-window: right:50%)
 }
 
 ///|
@@ -93,6 +96,8 @@ fn parse_args() -> CliOptions {
   let mut info = "default"
   let mut layout = "default"
   let mut color = ""
+  let mut preview = ""
+  let mut preview_window = "right:50%"
   let mut i = 1 // Skip program name
   while i < args.length() {
     let arg = args[i]
@@ -262,6 +267,20 @@ fn parse_args() -> CliOptions {
       }
     } else if arg.has_prefix("--color=") {
       color = extract_value(arg, 8)
+    } else if arg == "--preview" {
+      i = i + 1
+      if i < args.length() {
+        preview = args[i]
+      }
+    } else if arg.has_prefix("--preview=") {
+      preview = extract_value(arg, 10)
+    } else if arg == "--preview-window" {
+      i = i + 1
+      if i < args.length() {
+        preview_window = args[i]
+      }
+    } else if arg.has_prefix("--preview-window=") {
+      preview_window = extract_value(arg, 17)
     }
     i = i + 1
   }
@@ -300,6 +319,8 @@ fn parse_args() -> CliOptions {
     info,
     layout,
     color,
+    preview,
+    preview_window,
   }
 }
 
@@ -346,6 +367,10 @@ fn print_help() -> Unit {
     "    --info <STYLE>           Info line style (default, hidden, inline)\n" +
     "    --layout <LAYOUT>        Layout (default, reverse, reverse-list)\n" +
     "    --color <SPEC>           Color scheme (prompt:yellow,pointer:cyan,...)\n" +
+    "\n" +
+    "  Preview:\n" +
+    "    --preview <CMD>          Command to preview selected item (use {} for item)\n" +
+    "    --preview-window <SPEC>  Preview window layout (right:50%, bottom:40%)\n" +
     "\n" +
     "  Behavior:\n" +
     "    -m, --multi              Enable multi-select (Tab to mark)\n" +

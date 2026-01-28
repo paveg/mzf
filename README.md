@@ -12,6 +12,7 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 - Exact match mode (`-e, --exact`)
 - ANSI color support (`--ansi`)
 - History support (`--history`)
+- Preview pane support (`--preview`)
 - Stdin pipe support (both native and JS builds)
 - Extended search mode (`-x, --extended`)
 - Lightweight: ~550KB native binary, ~257KB JS
@@ -23,7 +24,7 @@ A lightweight fuzzy finder written in MoonBit with fzf-compatible options.
 | [fzf](https://github.com/junegunn/fzf) | Go | ~3.5MB | Full-featured, preview, multi-select |
 | [skim](https://github.com/lotabout/skim) | Rust | ~3.9MB | fzf-compatible, async |
 | [peco](https://github.com/peco/peco) | Go | ~4.7MB | Simple, customizable |
-| **mzf** | MoonBit | **~550KB** | fzf-compatible, lightweight |
+| **mzf** | MoonBit | **~550KB** | fzf-compatible, preview, lightweight |
 
 *mzf is ~6x smaller than alternatives while providing fzf-compatible options.*
 
@@ -82,6 +83,12 @@ ls --color=always | mzf --ansi
 
 # Custom color scheme
 ls | mzf --color=prompt:red,pointer:blue,hl:green
+
+# Preview file contents
+find . -type f | mzf --preview 'cat {}'
+
+# Preview with bottom layout
+find . -type f | mzf --preview 'head -20 {}' --preview-window bottom:40%
 
 # Show help
 mzf --help
@@ -143,6 +150,24 @@ mzf --help
 | `--info <STYLE>` | Info line style (default, hidden, inline) |
 | `--layout <LAYOUT>` | Layout (default, reverse, reverse-list) |
 | `--color <SPEC>` | Color scheme (prompt:yellow,pointer:cyan,...) |
+
+### Preview
+
+| Option | Description |
+|--------|-------------|
+| `--preview <CMD>` | Command to preview selected item |
+| `--preview-window <SPEC>` | Preview window layout (right:50%, bottom:40%) |
+
+#### Preview Placeholders
+
+| Placeholder | Description |
+|-------------|-------------|
+| `{}` | Current line (shell-escaped) |
+| `{f}` | Current line (quoted, same as {}) |
+| `{n}` | Line number (1-indexed) |
+| `{q}` | Current query string |
+| `{+}` | All marked items (space-separated) |
+| `{+n}` | Line numbers of marked items |
 
 ### Behavior
 
@@ -218,8 +243,8 @@ make test
 | | `--highlight-line` | ✅ | ❌ | |
 | **History** | `--history` | ✅ | ✅ | |
 | | `--history-size` | ✅ | ✅ | |
-| **Preview** | `--preview` | ✅ | ❌ | Preview pane |
-| | `--preview-window` | ✅ | ❌ | |
+| **Preview** | `--preview` | ✅ | ✅ | Preview pane |
+| | `--preview-window` | ✅ | ✅ | mzf: right/bottom only |
 | **Output** | `-q, --query` | ✅ | ✅ | |
 | | `-1, --select-1` | ✅ | ✅ | |
 | | `-0, --exit-0` | ✅ | ✅ | |

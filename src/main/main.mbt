@@ -1,21 +1,4 @@
 ///|
-/// Get demo items for testing when no stdin input
-fn get_demo_items() -> Array[@core.Item] {
-  [
-    @core.Item::new("src/main/main.mbt", 0),
-    @core.Item::new("src/core/types.mbt", 1),
-    @core.Item::new("src/core/matcher.mbt", 2),
-    @core.Item::new("src/ui/app.mbt", 3),
-    @core.Item::new("src/ui/highlight.mbt", 4),
-    @core.Item::new("moon.mod.json", 5),
-    @core.Item::new("README.md", 6),
-    @core.Item::new("examples/demo.mbt", 7),
-    @core.Item::new("tests/matcher_test.mbt", 8),
-    @core.Item::new("docs/design.md", 9),
-  ]
-}
-
-///|
 /// Run the main application with options
 fn run_app(
   items : Array[@core.Item],
@@ -48,6 +31,9 @@ fn run_app(
   info? : String = "default",
   layout? : String = "default",
   color? : String = "",
+  preview? : String = "",
+  preview_window? : String = "right:50%",
+  fetch_preview? : (String) -> String = fn(_cmd) { "" },
 ) -> Unit {
   if items.length() == 0 {
     if exit_0 {
@@ -82,6 +68,8 @@ fn run_app(
     info~,
     layout~,
     color~,
+    preview~,
+    preview_window~,
   )
 
   // Handle --select-1: auto-select if only one match
@@ -130,6 +118,30 @@ fn run_app(
   @io.print_raw("\u001b[0m") // Reset all attributes
   @io.enable_raw_mode()
 
+  // Helper to update preview
+  fn update_preview() -> Unit {
+    if app.has_preview() && app.preview_needs_update() {
+      match app.get_current_item() {
+        Some(item) => {
+          let cmd = substitute_placeholders(
+            app.get_preview_command(),
+            item,
+            app.get_current_line_num(),
+            app.get_query(),
+            app.get_marked_items(),
+            app.get_marked_indices(),
+          )
+          let output = fetch_preview(cmd)
+          app.set_preview_cache(output)
+        }
+        None => app.set_preview_cache("(no item selected)")
+      }
+    }
+  }
+
+  // Initial preview fetch
+  update_preview()
+
   // Initial render
   @io.print_raw(app.render())
 
@@ -144,6 +156,8 @@ fn run_app(
     let event = @events.parse_input(key)
     app.handle_key(event)
     if app.is_running() {
+      // Update preview if selection changed
+      update_preview()
       @io.print_raw(app.render())
     } else {
       // Exit cleanup

@@ -134,6 +134,11 @@ pub struct App {
   info : String // Info line style (default, hidden, inline)
   layout : String // Layout (default, reverse, reverse-list)
   colors : ColorScheme // Color scheme for UI elements
+  // Preview
+  preview_command : String // Preview command template
+  preview_window : String // Preview window spec (right:50%, bottom:40%)
+  mut preview_cache : String // Cached preview output
+  mut preview_item_idx : Int // Index of item preview was generated for (-1 = none)
 }
 
 ///|
@@ -163,6 +168,8 @@ pub fn App::new(
   info? : String = "default",
   layout? : String = "default",
   color? : String = "",
+  preview? : String = "",
+  preview_window? : String = "right:50%",
 ) -> App {
   let app : App = {
     query: initial_query,
@@ -198,6 +205,10 @@ pub fn App::new(
     info,
     layout,
     colors: ColorScheme::parse(color),
+    preview_command: preview,
+    preview_window,
+    preview_cache: "",
+    preview_item_idx: -1,
   }
   // Apply initial filter
   app.update_filter()
@@ -890,6 +901,198 @@ fn App::render_bottom_border(self : App, buf : StringBuilder) -> Unit {
 }
 
 ///|
+/// Parse preview window spec and return (position, size_percent)
+fn parse_preview_spec(spec : String) -> (String, Int) {
+  let chars : Array[Char] = spec.iter().collect()
+  let pos_buf = StringBuilder::new()
+  let size_buf = StringBuilder::new()
+  let mut in_size = false
+  for c in chars {
+    if c == ':' {
+      in_size = true
+    } else if in_size {
+      if c >= '0' && c <= '9' {
+        size_buf.write_char(c)
+      }
+    } else {
+      pos_buf.write_char(c)
+    }
+  }
+  let position = pos_buf.to_string()
+  let size_str = size_buf.to_string()
+  let mut size = 50
+  if size_str.length() > 0 {
+    let mut result = 0
+    for c in size_str {
+      if c >= '0' && c <= '9' {
+        result = result * 10 + (c.to_int() - '0'.to_int())
+      }
+    }
+    size = result
+  }
+  (position, size)
+}
+
+///|
+/// Split preview content into lines with wrapping
+fn split_preview_lines(content : String, max_width : Int) -> Array[String] {
+  let lines : Array[String] = []
+  let chars : Array[Char] = content.iter().collect()
+  let len = chars.length()
+  let line_buf = StringBuilder::new()
+  let mut col = 0
+  let mut i = 0
+  while i < len {
+    let c = chars[i]
+    if c == '\n' {
+      lines.push(line_buf.to_string())
+      line_buf.reset()
+      col = 0
+      i = i + 1
+    } else if c == '\r' {
+      // Skip CR
+      i = i + 1
+    } else if c == '\u001b' {
+      // ANSI escape sequence - include in output but don't count width
+      line_buf.write_char(c)
+      i = i + 1
+      if i < len && chars[i] == '[' {
+        // CSI sequence: ESC [ ... final_byte
+        line_buf.write_char(chars[i])
+        i = i + 1
+        // Read parameter and intermediate bytes until final byte
+        while i < len {
+          let ch = chars[i]
+          line_buf.write_char(ch)
+          i = i + 1
+          let code = ch.to_uint()
+          if code >= 0x40 && code <= 0x7E {
+            // Final byte found
+            break
+          }
+        }
+      } else if i < len {
+        // Non-CSI escape, include next char
+        line_buf.write_char(chars[i])
+        i = i + 1
+      }
+    } else if c == '\t' {
+      // Expand tab to spaces (align to next 8-column boundary)
+      let tab_width = 8
+      let spaces_to_add = tab_width - col % tab_width
+      for _j = 0; _j < spaces_to_add; _j = _j + 1 {
+        if col >= max_width {
+          lines.push(line_buf.to_string())
+          line_buf.reset()
+          col = 0
+        }
+        line_buf.write_char(' ')
+        col = col + 1
+      }
+      i = i + 1
+    } else {
+      line_buf.write_char(c)
+      col = col + 1
+      i = i + 1
+      if col >= max_width {
+        lines.push(line_buf.to_string())
+        line_buf.reset()
+        col = 0
+      }
+    }
+  }
+  let last = line_buf.to_string()
+  if last.length() > 0 {
+    lines.push(last)
+  }
+  lines
+}
+
+///|
+/// Truncate string to specified width (simple, non-ANSI)
+fn truncate_to_width(s : String, max_width : Int) -> String {
+  let chars : Array[Char] = s.iter().collect()
+  if chars.length() <= max_width {
+    return s
+  }
+  let buf = StringBuilder::new()
+  for i = 0; i < max_width; i = i + 1 {
+    buf.write_char(chars[i])
+  }
+  buf.to_string()
+}
+
+///|
+/// Calculate visible width of a string (excluding ANSI escape codes)
+fn visible_width(s : String) -> Int {
+  let chars : Array[Char] = s.iter().collect()
+  let len = chars.length()
+  let mut width = 0
+  let mut i = 0
+  while i < len {
+    if chars[i] == '\u001b' {
+      // Skip ANSI escape sequence
+      i = i + 1
+      if i < len && chars[i] == '[' {
+        i = i + 1
+        while i < len {
+          let code = chars[i].to_uint()
+          i = i + 1
+          if code >= 0x40 && code <= 0x7E {
+            break
+          }
+        }
+      } else if i < len {
+        i = i + 1
+      }
+    } else {
+      width = width + 1
+      i = i + 1
+    }
+  }
+  width
+}
+
+///|
+/// Truncate string to specified visible width (ANSI-aware)
+/// Preserves ANSI codes but truncates based on visible characters
+fn truncate_to_visible_width(s : String, max_width : Int) -> String {
+  let chars : Array[Char] = s.iter().collect()
+  let len = chars.length()
+  let buf = StringBuilder::new()
+  let mut width = 0
+  let mut i = 0
+  while i < len && width < max_width {
+    if chars[i] == '\u001b' {
+      // Include entire ANSI escape sequence
+      buf.write_char(chars[i])
+      i = i + 1
+      if i < len && chars[i] == '[' {
+        buf.write_char(chars[i])
+        i = i + 1
+        while i < len {
+          let ch = chars[i]
+          buf.write_char(ch)
+          i = i + 1
+          let code = ch.to_uint()
+          if code >= 0x40 && code <= 0x7E {
+            break
+          }
+        }
+      } else if i < len {
+        buf.write_char(chars[i])
+        i = i + 1
+      }
+    } else {
+      buf.write_char(chars[i])
+      width = width + 1
+      i = i + 1
+    }
+  }
+  buf.to_string()
+}
+
+///|
 /// Check if layout should show prompt at bottom
 fn App::is_prompt_at_bottom(self : App) -> Bool {
   self.layout == "reverse" || self.reverse
@@ -902,8 +1105,629 @@ fn App::is_items_reversed(self : App) -> Bool {
 }
 
 ///|
+/// Render with preview pane (split view)
+fn App::render_with_preview(self : App) -> String {
+  let buf = StringBuilder::new()
+  let (position, size_percent) = parse_preview_spec(self.preview_window)
+
+  // Minimum widths for usable display
+  let min_main_width = 20
+  let min_preview_width = 10
+
+  // Calculate pane dimensions
+  let is_right = position == "right" || position == ""
+  let raw_preview_width = if is_right {
+    self.width * size_percent / 100
+  } else {
+    self.width - 1 // bottom uses full width
+  }
+  // Enforce minimum widths
+  let preview_width = if is_right {
+    let max_preview = self.width - min_main_width - 1
+    if raw_preview_width > max_preview {
+      if max_preview > min_preview_width {
+        max_preview
+      } else {
+        min_preview_width
+      }
+    } else if raw_preview_width < min_preview_width {
+      min_preview_width
+    } else {
+      raw_preview_width
+    }
+  } else {
+    raw_preview_width
+  }
+  let main_width = if is_right {
+    self.width - preview_width - 1
+  } else {
+    self.width - 1
+  } // -1 for border
+
+  // Calculate heights
+  let preview_height = if is_right {
+    self.height - 2 // full height minus borders
+  } else {
+    self.height * size_percent / 100
+  }
+  let main_height = if is_right {
+    self.height - 2
+  } else {
+    self.height - preview_height - 1
+  }
+
+  // Prepare preview lines
+  let preview_content_width = if is_right {
+    preview_width - 2
+  } else {
+    self.width - 2
+  }
+  let preview_lines = split_preview_lines(
+    self.preview_cache,
+    preview_content_width,
+  )
+  let max_preview_lines = if is_right {
+    preview_height
+  } else {
+    preview_height - 2
+  }
+
+  // Hide cursor and go home
+  buf.write_string("\u001b[?25l")
+  buf.write_string("\u001b[H")
+  buf.write_string(ansi_reset)
+  if is_right {
+    // Side-by-side layout: main | preview
+    self.render_split_horizontal(
+      buf, main_width, preview_width, preview_lines, max_preview_lines,
+    )
+  } else {
+    // Top-bottom layout: main on top, preview on bottom
+    self.render_split_vertical(
+      buf, main_height, preview_height, preview_lines, max_preview_lines,
+    )
+  }
+  buf.to_string()
+}
+
+///|
+/// Render horizontal split (main left, preview right)
+fn App::render_split_horizontal(
+  self : App,
+  buf : StringBuilder,
+  main_width : Int,
+  preview_width : Int,
+  preview_lines : Array[String],
+  max_preview_lines : Int,
+) -> Unit {
+  let header_lines = @core.count_lines(self.header)
+  let info_lines = if self.info == "default" { 1 } else { 0 }
+  let max_items = self.height - 4 - header_lines - info_lines // prompt, separator, borders
+  let (start_idx, visible_count) = self.get_visible_range(max_items)
+  let items_reversed = self.is_items_reversed()
+  let prompt_at_bottom = self.is_prompt_at_bottom()
+
+  // Build main pane lines
+  let main_lines : Array[String] = []
+
+  // Top border / spacer
+  let top_border = self.build_top_border_line(main_width)
+  main_lines.push(top_border)
+  if prompt_at_bottom {
+    // Status line
+    if self.info == "default" {
+      main_lines.push(self.build_info_line(main_width))
+    }
+    // Header
+    if self.header.length() > 0 {
+      let hdr_lines = @core.split_lines(self.header)
+      for hl in hdr_lines {
+        main_lines.push(self.pad_line(hl, main_width))
+      }
+    }
+    // Empty lines
+    for j = visible_count; j < max_items; j = j + 1 {
+      ignore(j)
+      main_lines.push(self.pad_line("", main_width))
+    }
+    // Items (with scroll offset)
+    if items_reversed {
+      for i = visible_count - 1; i >= 0; i = i - 1 {
+        main_lines.push(self.build_item_line(start_idx + i, main_width))
+      }
+    } else {
+      for i = 0; i < visible_count; i = i + 1 {
+        main_lines.push(self.build_item_line(start_idx + i, main_width))
+      }
+    }
+    // Separator
+    main_lines.push(self.build_separator_line(main_width))
+    // Prompt
+    main_lines.push(self.build_prompt_line(main_width))
+  } else {
+    // Prompt at top
+    main_lines.push(self.build_prompt_line(main_width))
+    // Separator
+    main_lines.push(self.build_separator_line(main_width))
+    // Header
+    if self.header.length() > 0 {
+      let hdr_lines = @core.split_lines(self.header)
+      for hl in hdr_lines {
+        main_lines.push(self.pad_line(hl, main_width))
+      }
+    }
+    // Items (with scroll offset)
+    if items_reversed {
+      for i = visible_count - 1; i >= 0; i = i - 1 {
+        main_lines.push(self.build_item_line(start_idx + i, main_width))
+      }
+    } else {
+      for i = 0; i < visible_count; i = i + 1 {
+        main_lines.push(self.build_item_line(start_idx + i, main_width))
+      }
+    }
+    // Empty lines
+    for j = visible_count; j < max_items; j = j + 1 {
+      ignore(j)
+      main_lines.push(self.pad_line("", main_width))
+    }
+    // Status
+    if self.info == "default" {
+      main_lines.push(self.build_info_line(main_width))
+    }
+  }
+
+  // Bottom border
+  let bottom_border = self.build_bottom_border_line(main_width)
+  main_lines.push(bottom_border)
+
+  // Build preview pane lines
+  let pv_lines : Array[String] = []
+  // Preview top border
+  pv_lines.push(self.build_preview_top_border(preview_width))
+  // Preview content
+  for i = 0; i < max_preview_lines; i = i + 1 {
+    if i < preview_lines.length() {
+      pv_lines.push(
+        self.build_preview_content_line(preview_lines[i], preview_width),
+      )
+    } else {
+      pv_lines.push(self.build_preview_content_line("", preview_width))
+    }
+  }
+  // Preview bottom border
+  pv_lines.push(self.build_preview_bottom_border(preview_width))
+
+  // Combine and output
+  let total_lines = if main_lines.length() > pv_lines.length() {
+    main_lines.length()
+  } else {
+    pv_lines.length()
+  }
+  for i = 0; i < total_lines; i = i + 1 {
+    let main_part = if i < main_lines.length() {
+      main_lines[i]
+    } else {
+      self.pad_line("", main_width)
+    }
+    let pv_part = if i < pv_lines.length() {
+      pv_lines[i]
+    } else {
+      self.build_preview_content_line("", preview_width)
+    }
+    buf.write_string(main_part)
+    buf.write_string(pv_part)
+    buf.write_string("\u001b[K\r\n")
+  }
+
+  // Position cursor
+  // For prompt at top: cursor_row = 1 (same as regular render)
+  // For prompt at bottom: prompt is at main_lines[length-2]
+  //   main_lines structure: [top_border, ..., separator, prompt, bottom_border]
+  //   Array index (length-2) maps to terminal row (length-2) due to 0-indexed array vs 1-indexed rows
+  let cursor_row = if prompt_at_bottom { main_lines.length() - 2 } else { 1 }
+  let cursor_col = string_width(self.prompt) + 1 + self.query.length()
+  buf.write_string("\u001b[")
+  buf.write_string(cursor_row.to_string())
+  buf.write_string(";")
+  buf.write_string(cursor_col.to_string())
+  buf.write_string("H")
+  buf.write_string("\u001b[?25h")
+}
+
+///|
+/// Render vertical split (main top, preview bottom)
+fn App::render_split_vertical(
+  self : App,
+  buf : StringBuilder,
+  main_height : Int,
+  _preview_height : Int,
+  preview_lines : Array[String],
+  max_preview_lines : Int,
+) -> Unit {
+  let full_width = self.width - 1
+  let header_lines = @core.count_lines(self.header)
+  let info_lines = if self.info == "default" { 1 } else { 0 }
+  let max_items = main_height - 4 - header_lines - info_lines
+  let (start_idx, visible_count) = self.get_visible_range(max_items)
+  let items_reversed = self.is_items_reversed()
+  let prompt_at_bottom = self.is_prompt_at_bottom()
+
+  // Main pane (same as non-preview but with reduced height)
+  // Top border
+  buf.write_string(self.build_top_border_line(full_width))
+  buf.write_string("\u001b[K\r\n")
+  if prompt_at_bottom {
+    if self.info == "default" {
+      buf.write_string(self.build_info_line(full_width))
+      buf.write_string("\u001b[K\r\n")
+    }
+    if self.header.length() > 0 {
+      let hdr_lines = @core.split_lines(self.header)
+      for hl in hdr_lines {
+        buf.write_string(self.pad_line(hl, full_width))
+        buf.write_string("\u001b[K\r\n")
+      }
+    }
+    for j = visible_count; j < max_items; j = j + 1 {
+      ignore(j)
+      buf.write_string("\u001b[K\r\n")
+    }
+    if items_reversed {
+      for i = visible_count - 1; i >= 0; i = i - 1 {
+        buf.write_string(self.build_item_line(start_idx + i, full_width))
+        buf.write_string("\u001b[K\r\n")
+      }
+    } else {
+      for i = 0; i < visible_count; i = i + 1 {
+        buf.write_string(self.build_item_line(start_idx + i, full_width))
+        buf.write_string("\u001b[K\r\n")
+      }
+    }
+    buf.write_string(self.build_separator_line(full_width))
+    buf.write_string("\u001b[K\r\n")
+    buf.write_string(self.build_prompt_line(full_width))
+    buf.write_string("\u001b[K\r\n")
+  } else {
+    buf.write_string(self.build_prompt_line(full_width))
+    buf.write_string("\u001b[K\r\n")
+    buf.write_string(self.build_separator_line(full_width))
+    buf.write_string("\u001b[K\r\n")
+    if self.header.length() > 0 {
+      let hdr_lines = @core.split_lines(self.header)
+      for hl in hdr_lines {
+        buf.write_string(self.pad_line(hl, full_width))
+        buf.write_string("\u001b[K\r\n")
+      }
+    }
+    if items_reversed {
+      for i = visible_count - 1; i >= 0; i = i - 1 {
+        buf.write_string(self.build_item_line(start_idx + i, full_width))
+        buf.write_string("\u001b[K\r\n")
+      }
+    } else {
+      for i = 0; i < visible_count; i = i + 1 {
+        buf.write_string(self.build_item_line(start_idx + i, full_width))
+        buf.write_string("\u001b[K\r\n")
+      }
+    }
+    for j = visible_count; j < max_items; j = j + 1 {
+      ignore(j)
+      buf.write_string("\u001b[K\r\n")
+    }
+    if self.info == "default" {
+      buf.write_string(self.build_info_line(full_width))
+      buf.write_string("\u001b[K\r\n")
+    }
+  }
+
+  // Preview pane (bottom)
+  buf.write_string(self.build_preview_top_border(full_width))
+  buf.write_string("\u001b[K\r\n")
+  for i = 0; i < max_preview_lines; i = i + 1 {
+    if i < preview_lines.length() {
+      buf.write_string(
+        self.build_preview_content_line(preview_lines[i], full_width),
+      )
+    } else {
+      buf.write_string(self.build_preview_content_line("", full_width))
+    }
+    buf.write_string("\u001b[K\r\n")
+  }
+  buf.write_string(self.build_preview_bottom_border(full_width))
+  buf.write_string("\u001b[K")
+
+  // Position cursor
+  // For prompt at top: cursor_row = 1
+  // For prompt at bottom: prompt is at main_height - 1 (before bottom border of main pane)
+  let cursor_row = if prompt_at_bottom { main_height - 1 } else { 1 }
+  let cursor_col = string_width(self.prompt) + 1 + self.query.length()
+  buf.write_string("\u001b[")
+  buf.write_string(cursor_row.to_string())
+  buf.write_string(";")
+  buf.write_string(cursor_col.to_string())
+  buf.write_string("H")
+  buf.write_string("\u001b[?25h")
+}
+
+///|
+/// Build top border line for main pane
+fn App::build_top_border_line(self : App, width : Int) -> String {
+  let buf = StringBuilder::new()
+  if self.border == "none" {
+    // Just spaces
+    for i = 0; i < width; i = i + 1 {
+      ignore(i)
+      buf.write_char(' ')
+    }
+  } else {
+    let (tl, tr, _, _, h_char, _) = get_border_chars(self.border)
+    buf.write_string(self.colors.border)
+    if self.border == "horizontal" {
+      for i = 0; i < width; i = i + 1 {
+        ignore(i)
+        buf.write_string(h_char)
+      }
+    } else {
+      buf.write_string(tl)
+      for i = 0; i < width - 2; i = i + 1 {
+        ignore(i)
+        buf.write_string(h_char)
+      }
+      buf.write_string(tr)
+    }
+    buf.write_string(ansi_reset)
+  }
+  buf.to_string()
+}
+
+///|
+/// Build bottom border line for main pane
+fn App::build_bottom_border_line(self : App, width : Int) -> String {
+  let buf = StringBuilder::new()
+  if self.border == "none" {
+    for i = 0; i < width; i = i + 1 {
+      ignore(i)
+      buf.write_char(' ')
+    }
+  } else {
+    let (_, _, bl, br, h_char, _) = get_border_chars(self.border)
+    buf.write_string(self.colors.border)
+    if self.border == "horizontal" {
+      for i = 0; i < width; i = i + 1 {
+        ignore(i)
+        buf.write_string(h_char)
+      }
+    } else {
+      buf.write_string(bl)
+      for i = 0; i < width - 2; i = i + 1 {
+        ignore(i)
+        buf.write_string(h_char)
+      }
+      buf.write_string(br)
+    }
+    buf.write_string(ansi_reset)
+  }
+  buf.to_string()
+}
+
+///|
+/// Build prompt line (without newline)
+fn App::build_prompt_line(self : App, width : Int) -> String {
+  let buf = StringBuilder::new()
+  buf.write_string(self.colors.prompt)
+  buf.write_string(self.prompt)
+  buf.write_string(ansi_reset)
+  buf.write_string(self.colors.fg)
+  buf.write_string(self.query)
+  buf.write_string(ansi_reset)
+  buf.write_string(ansi_dim)
+  buf.write_string("_")
+  buf.write_string(ansi_reset)
+  if self.info == "inline" {
+    buf.write_string(" ")
+    buf.write_string(self.colors.info)
+    if self.marked.length() > 0 {
+      buf.write_string(self.marked.length().to_string())
+      buf.write_string("/")
+    }
+    buf.write_string(self.filtered.length().to_string())
+    buf.write_string("/")
+    buf.write_string(self.items.length().to_string())
+    buf.write_string(ansi_reset)
+  }
+  // Pad to width
+  let content_len = string_width(self.prompt) +
+    self.query.length() +
+    1 +
+    (if self.info == "inline" {
+      self.filtered.length().to_string().length() +
+      self.items.length().to_string().length() +
+      3
+    } else {
+      0
+    })
+  for i = content_len; i < width; i = i + 1 {
+    ignore(i)
+    buf.write_char(' ')
+  }
+  buf.to_string()
+}
+
+///|
+/// Build separator line
+fn App::build_separator_line(self : App, width : Int) -> String {
+  let buf = StringBuilder::new()
+  let (_, _, _, _, h_char, _) = get_border_chars(self.border)
+  let sep_char = if h_char.length() > 0 { h_char } else { "─" }
+  buf.write_string(self.colors.border)
+  for i = 0; i < width; i = i + 1 {
+    ignore(i)
+    buf.write_string(sep_char)
+  }
+  buf.write_string(ansi_reset)
+  buf.to_string()
+}
+
+///|
+/// Build info line
+fn App::build_info_line(self : App, width : Int) -> String {
+  let buf = StringBuilder::new()
+  buf.write_string(self.colors.info)
+  if self.marked.length() > 0 {
+    buf.write_string(self.marked.length().to_string())
+    buf.write_string("/")
+  }
+  buf.write_string(self.filtered.length().to_string())
+  buf.write_string("/")
+  buf.write_string(self.items.length().to_string())
+  buf.write_string(ansi_reset)
+  // Pad
+  let content_len = self.filtered.length().to_string().length() +
+    self.items.length().to_string().length() +
+    1
+  for i = content_len; i < width; i = i + 1 {
+    ignore(i)
+    buf.write_char(' ')
+  }
+  buf.to_string()
+}
+
+///|
+/// Build item line (without newline)
+fn App::build_item_line(self : App, idx : Int, width : Int) -> String {
+  let buf = StringBuilder::new()
+  let result = self.filtered[idx]
+  let is_cursor = idx == self.selected_idx
+  let is_marked = self.is_marked(result.item.original_index)
+
+  // Marker
+  if is_marked {
+    buf.write_string(self.colors.marker)
+    buf.write_string(self.marker)
+    buf.write_string(ansi_reset)
+  } else {
+    for k = 0; k < string_width(self.marker); k = k + 1 {
+      ignore(k)
+      buf.write_char(' ')
+    }
+  }
+
+  // Pointer
+  if is_cursor {
+    buf.write_string(ansi_reverse)
+    buf.write_string(self.colors.pointer)
+    buf.write_string(self.pointer)
+  } else {
+    for k = 0; k < string_width(self.pointer); k = k + 1 {
+      ignore(k)
+      buf.write_char(' ')
+    }
+  }
+
+  // Text
+  let display_text = self.get_display_text(result.item.text)
+  let prefix_len = string_width(self.marker) + string_width(self.pointer)
+  let max_text_len = width - prefix_len
+  let truncated = truncate_to_width(display_text, max_text_len)
+  if is_cursor {
+    buf.write_string(truncated)
+    buf.write_string(ansi_reset)
+  } else if self.with_nth.length() > 0 {
+    buf.write_string(truncated)
+  } else {
+    buf.write_string(
+      highlight_text(truncated, result.match_positions, self.colors.hl),
+    )
+  }
+
+  // Pad to width
+  let text_len = prefix_len + truncated.length()
+  for i = text_len; i < width; i = i + 1 {
+    ignore(i)
+    buf.write_char(' ')
+  }
+  buf.to_string()
+}
+
+///|
+/// Pad a line to specified width
+fn App::pad_line(self : App, s : String, width : Int) -> String {
+  let buf = StringBuilder::new()
+  buf.write_string(self.colors.header)
+  buf.write_string(s)
+  buf.write_string(ansi_reset)
+  let len = s.length()
+  for i = len; i < width; i = i + 1 {
+    ignore(i)
+    buf.write_char(' ')
+  }
+  buf.to_string()
+}
+
+///|
+/// Build preview pane top border
+fn App::build_preview_top_border(self : App, width : Int) -> String {
+  let buf = StringBuilder::new()
+  buf.write_string(self.colors.border)
+  buf.write_string("┌")
+  for i = 0; i < width - 2; i = i + 1 {
+    ignore(i)
+    buf.write_string("─")
+  }
+  buf.write_string("┐")
+  buf.write_string(ansi_reset)
+  buf.to_string()
+}
+
+///|
+/// Build preview pane bottom border
+fn App::build_preview_bottom_border(self : App, width : Int) -> String {
+  let buf = StringBuilder::new()
+  buf.write_string(self.colors.border)
+  buf.write_string("└")
+  for i = 0; i < width - 2; i = i + 1 {
+    ignore(i)
+    buf.write_string("─")
+  }
+  buf.write_string("┘")
+  buf.write_string(ansi_reset)
+  buf.to_string()
+}
+
+///|
+/// Build preview content line with borders (ANSI-aware)
+fn App::build_preview_content_line(
+  self : App,
+  content : String,
+  width : Int,
+) -> String {
+  let buf = StringBuilder::new()
+  buf.write_string(self.colors.border)
+  buf.write_string("│")
+  buf.write_string(ansi_reset)
+  let content_width = width - 2
+  let truncated = truncate_to_visible_width(content, content_width)
+  buf.write_string(truncated)
+  buf.write_string(ansi_reset) // Reset after ANSI content
+  let vis_len = visible_width(truncated)
+  for i = vis_len; i < content_width; i = i + 1 {
+    ignore(i)
+    buf.write_char(' ')
+  }
+  buf.write_string(self.colors.border)
+  buf.write_string("│")
+  buf.write_string(ansi_reset)
+  buf.to_string()
+}
+
+///|
 /// Render the UI
 pub fn App::render(self : App) -> String {
+  // If preview is enabled, use split pane rendering
+  if self.has_preview() {
+    return self.render_with_preview()
+  }
   let buf = StringBuilder::new()
   // Reserve lines for prompt, status, and header if present
   let header_lines = @core.count_lines(self.header)
@@ -923,11 +1747,7 @@ pub fn App::render(self : App) -> String {
   buf.write_string("\u001b[?25l") // Hide cursor
   buf.write_string("\u001b[H") // Move to home first
   buf.write_string(ansi_reset) // Reset all attributes to ensure clean state
-  let visible_count = if self.filtered.length() > max_visible {
-    max_visible
-  } else {
-    self.filtered.length()
-  }
+  let (start_idx, visible_count) = self.get_visible_range(max_visible)
   let prompt_at_bottom = self.is_prompt_at_bottom()
   let items_reversed = self.is_items_reversed()
   if prompt_at_bottom {
@@ -956,14 +1776,14 @@ pub fn App::render(self : App) -> String {
       buf.write_string("\r\n")
     }
 
-    // Render items (reversed order: last item first for bottom-up display)
+    // Render items (with scroll offset)
     if items_reversed {
       for i = visible_count - 1; i >= 0; i = i - 1 {
-        self.render_item(buf, i)
+        self.render_item(buf, start_idx + i)
       }
     } else {
       for i = 0; i < visible_count; i = i + 1 {
-        self.render_item(buf, i)
+        self.render_item(buf, start_idx + i)
       }
     }
 
@@ -1009,14 +1829,14 @@ pub fn App::render(self : App) -> String {
     // Header (if present)
     self.render_header(buf)
 
-    // Render items (possibly in reverse order for reverse-list)
+    // Render items (with scroll offset)
     if items_reversed {
       for i = visible_count - 1; i >= 0; i = i - 1 {
-        self.render_item(buf, i)
+        self.render_item(buf, start_idx + i)
       }
     } else {
       for i = 0; i < visible_count; i = i + 1 {
-        self.render_item(buf, i)
+        self.render_item(buf, start_idx + i)
       }
     }
 
@@ -1074,6 +1894,29 @@ pub fn App::filtered_count(self : App) -> Int {
 }
 
 ///|
+/// Calculate the start index for visible items to ensure selected item is visible
+/// Returns (start_idx, visible_count) where items from start_idx to start_idx+visible_count-1 should be rendered
+fn App::get_visible_range(self : App, max_visible : Int) -> (Int, Int) {
+  let total = self.filtered.length()
+  if total <= max_visible {
+    // All items fit, no scrolling needed
+    return (0, total)
+  }
+  // Need to scroll - ensure selected_idx is visible
+  let start_idx = if self.selected_idx < max_visible {
+    // Selected is in first page
+    0
+  } else if self.selected_idx >= total - max_visible {
+    // Selected is in last page
+    total - max_visible
+  } else {
+    // Selected is in middle - keep it centered (or at least visible)
+    self.selected_idx - max_visible / 2
+  }
+  (start_idx, max_visible)
+}
+
+///|
 /// Get first filtered item text (for --select-1)
 pub fn App::get_first_filtered(self : App) -> String? {
   if self.filtered.length() > 0 {
@@ -1081,4 +1924,82 @@ pub fn App::get_first_filtered(self : App) -> String? {
   } else {
     None
   }
+}
+
+///|
+/// Check if preview is enabled
+pub fn App::has_preview(self : App) -> Bool {
+  self.preview_command.length() > 0
+}
+
+///|
+/// Get preview command template
+pub fn App::get_preview_command(self : App) -> String {
+  self.preview_command
+}
+
+///|
+/// Get preview window spec
+pub fn App::get_preview_window(self : App) -> String {
+  self.preview_window
+}
+
+///|
+/// Get current selected item text (for preview)
+pub fn App::get_current_item(self : App) -> String? {
+  if self.filtered.length() > 0 && self.selected_idx < self.filtered.length() {
+    Some(self.filtered[self.selected_idx].item.text)
+  } else {
+    None
+  }
+}
+
+///|
+/// Get current selected item index (original_index, 1-indexed for preview)
+pub fn App::get_current_line_num(self : App) -> Int {
+  if self.filtered.length() > 0 && self.selected_idx < self.filtered.length() {
+    self.filtered[self.selected_idx].item.original_index + 1
+  } else {
+    0
+  }
+}
+
+///|
+/// Get all marked item texts
+pub fn App::get_marked_items(self : App) -> Array[String] {
+  let result : Array[String] = []
+  for idx in self.marked {
+    for item in self.items {
+      if item.original_index == idx {
+        result.push(item.text)
+        break
+      }
+    }
+  }
+  result
+}
+
+///|
+/// Get marked item indices (0-indexed)
+pub fn App::get_marked_indices(self : App) -> Array[Int] {
+  self.marked.copy()
+}
+
+///|
+/// Check if preview needs update (selection changed)
+pub fn App::preview_needs_update(self : App) -> Bool {
+  self.preview_item_idx != self.selected_idx
+}
+
+///|
+/// Set preview cache content
+pub fn App::set_preview_cache(self : App, content : String) -> Unit {
+  self.preview_cache = content
+  self.preview_item_idx = self.selected_idx
+}
+
+///|
+/// Get preview cache content
+pub fn App::get_preview_cache(self : App) -> String {
+  self.preview_cache
 }
