@@ -19,9 +19,6 @@ jobs:
           - os: macos-latest
             target: darwin-arm64
             binary_name: mzf
-          - os: macos-13
-            target: darwin-x64
-            binary_name: mzf
 
     runs-on: ${{ matrix.os }}
 
@@ -86,7 +83,7 @@ jobs:
           moon install
 
       - name: Build JS target
-        run: moon build --target js
+        run: moon build --target js --release
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -125,7 +122,6 @@ jobs:
           files: |
             artifacts/mzf-linux-x64/mzf-linux-x64.tar.gz
             artifacts/mzf-darwin-arm64/mzf-darwin-arm64.tar.gz
-            artifacts/mzf-darwin-x64/mzf-darwin-x64.tar.gz
           generate_release_notes: true
 
   publish-npm:
