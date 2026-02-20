@@ -844,12 +844,11 @@ test "extended: positions are sorted and deduplicated" {
   // AND with overlapping terms
   let result = extended_match("foo 'foo", "foobar", false)
   match result {
-    Some((_, _, positions)) => {
+    Some((_, _, positions)) =>
       // Positions should be sorted
       for i = 1; i < positions.length(); i = i + 1 {
         assert_true(positions[i] > positions[i - 1])
       }
-    }
     None => panic()
   }
 }
@@ -957,10 +956,7 @@ test "filter_exact_no_sort: preserves original order" {
 
 ///|
 test "filter_without_sort: preserves original order" {
-  let items = [
-    Item::new("z_abc.txt", 0),
-    Item::new("a_abc.txt", 1),
-  ]
+  let items = [Item::new("z_abc.txt", 0), Item::new("a_abc.txt", 1)]
   let results = filter_without_sort("abc", items)
   assert_eq(results.length(), 2)
   assert_eq(results[0].item.text, "z_abc.txt")
@@ -1013,11 +1009,7 @@ test "fuzzy_match_ignore_case: forces case insensitive even with uppercase" {
 
 ///|
 test "filter_without_sort: includes non-matching items in input" {
-  let items = [
-    Item::new("abc", 0),
-    Item::new("xyz", 1),
-    Item::new("abx", 2),
-  ]
+  let items = [Item::new("abc", 0), Item::new("xyz", 1), Item::new("abx", 2)]
   let results = filter_without_sort("abc", items)
   // "xyz" should be filtered out (None branch)
   assert_eq(results.length(), 1)
@@ -1026,10 +1018,7 @@ test "filter_without_sort: includes non-matching items in input" {
 
 ///|
 test "filter_exact_no_sort: includes non-matching items in input" {
-  let items = [
-    Item::new("hello world", 0),
-    Item::new("goodbye", 1),
-  ]
+  let items = [Item::new("hello world", 0), Item::new("goodbye", 1)]
   let results = filter_exact_no_sort("hello", items, false)
   // "goodbye" should be filtered out (None branch)
   assert_eq(results.length(), 1)
@@ -1037,10 +1026,7 @@ test "filter_exact_no_sort: includes non-matching items in input" {
 
 ///|
 test "filter_extended_no_sort: includes non-matching items in input" {
-  let items = [
-    Item::new("src/main.mbt", 0),
-    Item::new("README.md", 1),
-  ]
+  let items = [Item::new("src/main.mbt", 0), Item::new("README.md", 1)]
   let results = filter_extended_no_sort("^src", items, false)
   // "README.md" should be filtered out
   assert_eq(results.length(), 1)

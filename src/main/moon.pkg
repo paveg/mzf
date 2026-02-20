@@ -6,6 +6,7 @@ import {
   "moonbitlang/async" @mbasync,
   "moonbitlang/async/stdio" @stdio,
   "moonbitlang/async/fs" @fs,
+  "moonbitlang/async/js_async" @js_async,
   "moonbitlang/core/env" @env,
   "moonbitlang/core/encoding/utf8" @utf8,
 }
