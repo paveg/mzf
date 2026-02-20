@@ -461,5 +461,5 @@ fn print_help() -> Unit {
 ///|
 /// Print version
 fn print_version() -> Unit {
-  println("mzf 0.3.0")
+  println("mzf 0.3.1")
 }
