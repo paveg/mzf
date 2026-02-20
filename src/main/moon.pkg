@@ -3,12 +3,11 @@ import {
   "paveg/mzf/ui",
   "mizchi/tui/io",
   "mizchi/tui/events",
-  "moonbitlang/async" as @mbasync,
-  "moonbitlang/async/stdio" as @stdio,
-  "moonbitlang/async/fs" as @fs,
-  "moonbitlang/async/js_async" as @js_async,
-  "moonbitlang/core/env" as @env,
-  "moonbitlang/core/encoding/utf8" as @utf8,
+  "moonbitlang/async" @mbasync,
+  "moonbitlang/async/stdio" @stdio,
+  "moonbitlang/async/fs" @fs,
+  "moonbitlang/core/env" @env,
+  "moonbitlang/core/encoding/utf8" @utf8,
 }
 
 options(

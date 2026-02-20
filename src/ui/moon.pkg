@@ -1,6 +1,4 @@
 import {
   "paveg/mzf/core",
-  "mizchi/tui/render",
-  "mizchi/tui/io",
   "mizchi/tui/events",
 }
